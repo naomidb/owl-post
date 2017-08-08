@@ -2,23 +2,24 @@ import urllib
 
 #Preexisitng authors are identified with n number
 class Author():
-    def __init__(self, data, connection, **kwargs):
+    def __init__(self, connection, **kwargs):
+        print("Author creation")
         #for key, val in data.items():
             #setattr(self, key, val)
         self.connection = connection
-        self.n = n
         for key, val in kwargs.items():
             if key == 'number':
-                n = kwargs.get(key)
-            else if key == 'email':
-                n = find_n(kwargs.get(email))
+                self.n = kwargs.get(key)
+            elif key == 'email':
+                self.n = find_n(kwargs.get(email))
 
-        if self.is_extant():
+        print(self.n)
+        '''if self.is_extant():
             do something
         else:
             somthingelse
         if not n:
-            self.create_n()
+            self.create_n()'''
 
     def find_n(self, email):
         query='''
@@ -31,7 +32,7 @@ class Author():
           FILTER (?name="{}"^^<http://www.w3.org/2001/XMLSchema#string>)
         }
         '''.format(email)
-        author_id = self.connection.send_query(query)
+        author_id = self.connection.run_query(query)
         id_rest_stop = author_id.replace('<' + vivo_url + '/individual', '')
         n = id_rest_stop.replace('>', '')
         return n
