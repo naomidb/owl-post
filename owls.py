@@ -1,8 +1,10 @@
 import os
 import os.path
+import sys
 import yaml
 
-import APIsmith
+from owlery import Connection
+import queries
 
 def get_config(config_path):
     try:
@@ -13,60 +15,100 @@ def get_config(config_path):
         exit()
     return config
 
-def get_type():
+def get_template_type():
     dir = os.getcwd()
     direc = os.path.join(dir, 'queries')
 
-    x = {}
+    template_options = {}
     count = 1
     for file in os.listdir(direc):
-        x[count] = file
-        count += 1
+        if file.startswith('__init__') or file.endswith('.pyc'):
+            pass
+        else:
+            template_options[count] = file
+            count += 1
 
-    for key, val in x.items():
+    for key, val in template_options.items():
         print(str(key) + ': ' + val + '\n')
 
-    index = input("Write the number of your desired query type: ")
-    return x.get(index)
+    index = input("Write the number of your desired template type: ")
+    return template_options.get(index)
 
-def get_params(query_type):
-    if query_type.startswith("make_pub"):
-        if query_type.startswith("make_pub_new_author"):
-            #do stuff
-            #make author -> new_pub_old_author ?
-        else:
-            print("Fill in values for the following prompts. If you do not have a value for one of them, you may leave it blank.")
-            author_id = input("N number of author (include n): ")
-            label = input("Title: ")
-            page_start = input("Starting page: ")
-            page_end = input("Ending page: ")
-            params = {'author_id': author_id, 'pub_title': '', 'page_start': '', 'page_end': ''}
-            return params
-    elif query_type.startswith("make_author"):
-        #dostuff
-    #etc.
+def fill_details(key, item, connection):
+    """
+    Given an item which is an instance of a VivoDomainObject, calls get_details and iterates through the list, prompting the user for the literal values.
+    """
+
+    print('*' * 20 + '\n' * 2 + "Working on " + key + '\n' * 2 + '*' * 20)
+    print("Fill in the values for the following (if you do not have a value, leave it blank):")
+    #For journals, check user input against pre-existing journals
+    if item.type == 'journal':
+        #fill this in
+        pass
+
+    details = item.get_details()
+    for feature in details:
+        my_input = raw_input(str(feature) + ": ")
+        setattr(item, feature, my_input)
+
+
+    """if item.type == 'journal':
+        params = (1,2)
+        journal_list = get_journals.run(connection, *params)
+    else:
+        print("Fill in the values for the following (if you do not have a value, leave it blank):")
+        details = item.get_details()
+        for feature in details:
+            my_input = raw_input(str(feature) + ": ")
+            setattr(item, feature, my_input)"""
+
+def match_input(existing_options):
+    choices = {}
+    count = 1
+    for key, val in existing_options.items():
+        choices[count] = key
+    for key, val in choices.items():
+        print(str(key) + ': ' + val + '\n')
+
+    index = input("Do any of these match your" + journal + "? (if none, write 'n'): ")
+    if not index == 'n':
+        #fill this in
+        pass
+
 
 def main(argv1):
     config_path = argv1
     config = get_config(config_path)
 
-    query_type = get_type()
-    params = get_params(query_type)
+    email = config.get('email')
+    password = config.get ('password')
+    update_endpoint = config.get('update_endpoint')
+    query_endpoint = config.get('query_endpoint')
+    vivo_url = config.get('upload_url')
+    check_url = config.get('checking_url')
 
-    #author_id = input("Enter the n number of the author (including the n): ")
-    #identifier = {'number': author_id}
+    connection = Connection(vivo_url, check_url, email, password, update_endpoint, query_endpoint)
 
-    #article_label = input("What is the title of the article? (please use quotation marks) ")
+    template_type = get_template_type()
 
-    APIsmith.main(config, params)
+    head, sep, tail = template_type.partition('.')
+    template_choice = head
+    print(template_choice)
 
-    cont = input("Would you like to add another publication? (y/n) ")
-    if cont == 'y':
-        APIsmith.main(config, identifier)
+    template_mod = getattr(queries, template_choice)
+    params = template_mod.get_params(connection)
 
-    new_author = input("Would you like to work on a new author? (y/n) ")
-    if new_author == 'y':
-        main(config_path)
+    for key, val in params.items():
+        fill_details(key, val, connection)
+        print(type(val))
+
+    '''for item in params:
+        details = item.get_details()
+        for feature in details:
+            trait = getattr(item, feature)'''
+
+    response = template_mod.run(connection, **params)
+    print(response)
 
 if __name__ == '__main__':
-    main(sys.argv[1:])
+    main(sys.argv[1])

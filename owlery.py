@@ -3,10 +3,11 @@ import requests
 import urllib
 
 class Connection(object):
-    def __init__(self, vivo_url, check_url, user, password, endpoint):
+    def __init__(self, vivo_url, check_url, user, password, u_endpoint, q_endpoint):
         self.user = user
         self.password = password
-        self.endpoint = endpoint
+        self.update_endpoint = u_endpoint
+        self.query_endpoint = q_endpoint
         self.vivo_url = vivo_url
         self.check_url = check_url
         '''res = requests.get(vivo_url)
@@ -20,32 +21,48 @@ class Connection(object):
     def check_n(self, n):
         # call to vivo, see if n number exists
         url = self.check_url + n
-        print(url)
         page = requests.get(url).text
         title = page[page.find('<title>') + 7 : page.find('</title>')]
-        print (title)
         return title == 'Individual Not Found'
 
     def gen_n(self):
-        print ("Making n")
         good_n = False
         while not good_n:
             # get an n
             n = "n" + str(random.randint(1,9999999999))
-            print("Your n is " + n)
             # check if good
             good_n = self.check_n(n)
         return n
 
-    def run_query(self, query):
-        print "Query:\n" + query
+    def run_update(self, template):
+        print("Query:\n" + template)
         payload = {
             'email': self.user,
             'password': self.password,
-            'update': query
+            'update': template
         }
         data = urllib.urlencode(payload)
-        response = urllib.urlopen(self.endpoint, data)
+        response = urllib.urlopen(self.update_endpoint, data)
         print "Status code:", response.code
         return response
-        pass
+
+    def run_query(self, template):
+        print("Query:\n" + template)
+        payload = {
+            'email': self.user,
+            'password': self.password,
+            'query': template
+        }
+        url = self.query_endpoint
+        headers = {'Accept': 'application/sparql-results+json'}
+        response = requests.get(url, params=payload, headers=headers)
+        
+        #test = journal_dump['results']['bindings'][0]['label']['value']
+        #print(test)
+        #j = json.load(r)
+        #print(j)
+        
+        #response = os.system("curl -i -d 'email={}' -d 'password={}' -d 'query={}' -H 'Accept: application/sparql-results+json' '{}' >> practice".format(self.user, self.password, template, self.query_endpoint))
+        #with open('practice', 'w') as file:
+         #   json.dump(response, file)
+        return response

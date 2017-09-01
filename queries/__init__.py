@@ -1,1 +1,3 @@
-import queries.make_pub_existing_author
+import check_n_value
+import make_pub_old_author_old_journal
+import get_journals
