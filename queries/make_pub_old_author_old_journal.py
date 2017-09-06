@@ -5,17 +5,14 @@ from journal import Journal
 def get_params(connection):
     author = Author(connection, True)
     article = Article(connection, False)
-    journal = Journal(connection, True)
+    journal = Journal(connection)
     params = {'Author': author, 'Article': article, 'Journal': journal}
     return params
 
 
-def run(connection, **players):
-    print("building request")
-    print(type(players))
+def run(connection, **params):
     # check for valid data
-    for title, item in players.items():
-        print(type(item))
+    for title, item in params.items():
         if item.type == 'author':
             author = item
         elif item.type == 'article':
@@ -24,6 +21,7 @@ def run(connection, **players):
             journal = item
     relationship_id = connection.gen_n()
     article.final_check(relationship_id)
+    article.final_check(journal.n_num)
 
     # template data into q
     q = """
@@ -47,5 +45,6 @@ def run(connection, **players):
     """.format(Article=article, Relationship=relationship_id, Author=author, Journal = journal)
 
     # send data to vivo
+    print("Adding article with pre-existing author.")
     response = connection.run_update(q)
     return response

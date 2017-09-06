@@ -8,6 +8,7 @@ class Article(object):
             self.details = ['n_num']
         else:
             self.n_num = None
+            print("Gotta make an n")
             self.create_n()
 
             self.title = None
@@ -23,13 +24,13 @@ class Article(object):
     def create_n(self):
         self.n_num = self.connection.gen_n()
 
-    def check_journals(self, journal_input):
-        params = (1,2)
-        journal_list = get_journals.run(self.connection, *params)
+    def get_matching_journals(self):
+        params = {}
+        journal_list = get_journals.run(self.connection, **params)
 
         journal_options = {}
         for key, val in journal_list.items():
-            if journal_input == key:
+            if self.journal == key:
                 journal_options[key] = val
 
         return journal_options

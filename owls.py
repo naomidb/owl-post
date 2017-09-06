@@ -42,14 +42,29 @@ def fill_details(key, item, connection):
     print('*' * 20 + '\n' * 2 + "Working on " + key + '\n' * 2 + '*' * 20)
     print("Fill in the values for the following (if you do not have a value, leave it blank):")
     #For journals, check user input against pre-existing journals
-    if item.type == 'journal':
-        #fill this in
-        pass
+    if key == 'Journal':
+        journal = item
 
-    details = item.get_details()
-    for feature in details:
-        my_input = raw_input(str(feature) + ": ")
-        setattr(item, feature, my_input)
+        journal.title = raw_input("title: ")
+        #check if title is in list of current journals
+        print("(generating journal list)")
+        deets = {}
+        current_journals = queries.get_journals.run(connection, **deets)
+
+        match = match_input(journal.title, current_journals)
+        if match == 'none':
+            journal.create_n()
+            params = {'New Journal': journal}
+            queries.make_journal.run(connection, **params)
+        else:
+            journal.n_num = match
+            print("The n number for this journal is " + journal.n_num)
+
+    else:
+        details = item.get_details()
+        for feature in details:
+            my_input = raw_input(str(feature) + ": ")
+            setattr(item, feature, my_input)
 
 
     """if item.type == 'journal':
@@ -62,19 +77,27 @@ def fill_details(key, item, connection):
             my_input = raw_input(str(feature) + ": ")
             setattr(item, feature, my_input)"""
 
-def match_input(existing_options):
+def match_input(title, existing_options):
     choices = {}
     count = 1
     for key, val in existing_options.items():
-        choices[count] = key
-    for key, val in choices.items():
-        print(str(key) + ': ' + val + '\n')
+        if title.lower() in key.lower():
+            choices[count] = key
+            count += 1
 
-    index = input("Do any of these match your" + journal + "? (if none, write 'n'): ")
-    if not index == 'n':
-        #fill this in
-        pass
+    index = -1
+    if choices:
+        for key, val in choices.items():
+            print(str(key) + ': ' + val + '\n')
 
+        index = input("Do any of these match your input? (if none, write -1): ")
+    if not index == -1:
+        title = choices.get(index)
+        match = existing_options.get(title)
+    else:
+        match = 'none'
+
+    return match
 
 def main(argv1):
     config_path = argv1
@@ -99,6 +122,7 @@ def main(argv1):
     params = template_mod.get_params(connection)
 
     for key, val in params.items():
+        print("Looping through params")
         fill_details(key, val, connection)
         print(type(val))
 

@@ -2,6 +2,9 @@ import random
 import requests
 import urllib
 
+from queries import check_n_value
+from thing import Thing
+
 class Connection(object):
     def __init__(self, vivo_url, check_url, user, password, u_endpoint, q_endpoint):
         self.user = user
@@ -20,18 +23,28 @@ class Connection(object):
 
     def check_n(self, n):
         # call to vivo, see if n number exists
-        url = self.check_url + n
+        '''url = self.check_url + n
         page = requests.get(url).text
         title = page[page.find('<title>') + 7 : page.find('</title>')]
         return title == 'Individual Not Found'
+        '''
+
+        #create a Thing to test n number
+        thing_check = Thing(self)
+        thing_check.n_num = n
+        params = {'the thing': thing_check}
+        #use query to check if n number exists
+        response = check_n_value.run(self, **params)
+        return response
 
     def gen_n(self):
-        good_n = False
-        while not good_n:
+        bad_n = True
+        while bad_n:
             # get an n
             n = "n" + str(random.randint(1,9999999999))
-            # check if good
-            good_n = self.check_n(n)
+            print(n)
+            # check if n is taken
+            bad_n = self.check_n(n)
         return n
 
     def run_update(self, template):
