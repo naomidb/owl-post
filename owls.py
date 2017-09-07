@@ -47,7 +47,6 @@ def fill_details(key, item, connection):
 
         journal.title = raw_input("title: ")
         #check if title is in list of current journals
-        print("(generating journal list)")
         deets = {}
         current_journals = queries.get_journals.run(connection, **deets)
 
@@ -122,14 +121,7 @@ def main(argv1):
     params = template_mod.get_params(connection)
 
     for key, val in params.items():
-        print("Looping through params")
         fill_details(key, val, connection)
-        print(type(val))
-
-    '''for item in params:
-        details = item.get_details()
-        for feature in details:
-            trait = getattr(item, feature)'''
 
     response = template_mod.run(connection, **params)
     print(response)

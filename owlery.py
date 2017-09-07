@@ -42,7 +42,6 @@ class Connection(object):
         while bad_n:
             # get an n
             n = "n" + str(random.randint(1,9999999999))
-            print(n)
             # check if n is taken
             bad_n = self.check_n(n)
         return n

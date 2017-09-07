@@ -1,3 +1,9 @@
-* Have check_n use queries to check if n number exists
-
 * Allow user to make new queries (and add them to option dictionary)
+
+* Decide how to handle blank inputs
+
+---------------------------------------------------
+
+# Complete
+
+* Have check_n use queries to check if n number exists

@@ -45,6 +45,6 @@ def run(connection, **params):
     """.format(Article=article, Relationship=relationship_id, Author=author, Journal = journal)
 
     # send data to vivo
-    print("Adding article with pre-existing author.")
+    print('=' * 20 + "\nAdding article with pre-existing author\n" + '=' * 20)
     response = connection.run_update(q)
     return response

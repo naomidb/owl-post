@@ -22,6 +22,6 @@ def run(connection, **params):
     }}
     """.format(Journal=journal)
 
-    print("Creating new journal.")
+    print('=' * 20 + "\nCreating new journal\n" + '=' * 20)
     response = connection.run_update(q)
     return response

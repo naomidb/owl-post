@@ -8,7 +8,6 @@ class Article(object):
             self.details = ['n_num']
         else:
             self.n_num = None
-            print("Gotta make an n")
             self.create_n()
 
             self.title = None
