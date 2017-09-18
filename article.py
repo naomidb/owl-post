@@ -15,7 +15,8 @@ class Article(object):
             self.issue = None
             self.start_page = None
             self.end_page = None
-            self.details = ['title', 'volume', 'issue', 'start_page', 'end_page']
+            self.publication_year = None
+            self.details = ['title', 'volume', 'issue', 'start_page', 'end_page', 'publication_year']
 
     def get_details(self):
         return self.details

@@ -46,18 +46,31 @@ def fill_details(key, item, connection):
         journal = item
 
         journal.title = raw_input("title: ")
-        #check if title is in list of current journals
-        deets = {}
-        current_journals = queries.get_journals.run(connection, **deets)
+        #if user did not leave title blank, check if title is in list of current journals
+        if journal.title:
+            deets = {}
+            current_journals = queries.get_journals.run(connection, **deets)
 
-        match = match_input(journal.title, current_journals)
-        if match == 'none':
-            journal.create_n()
-            params = {'New Journal': journal}
-            queries.make_journal.run(connection, **params)
+            match = match_input(journal.title, current_journals)
+            if match == 'none':
+                journal.create_n()
+                params = {'New Journal': journal}
+                queries.make_journal.run(connection, **params)
+
+            else:
+                journal.n_num = match
+                print("The n number for this journal is " + journal.n_num)
+
+    elif key == 'Author':
+        author = item
+
+        auth_num = raw_input("N number (if you do not know the n number, leave this blank): ")
+        #If user does not know author n number, search for author
+        if auth_num:
+            author.n_num = auth_num
         else:
-            journal.n_num = match
-            print("The n number for this journal is " + journal.n_num)
+            auth_name = raw_input("Author name: ")
+            #add author search here
 
     else:
         details = item.get_details()

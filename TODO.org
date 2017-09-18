@@ -1,6 +1,8 @@
 * Allow user to make new queries (and add them to option dictionary)
 
-* Decide how to handle blank inputs
+* Integrate Jinja2
+
+* Remove existence parameter from author and article
 
 ---------------------------------------------------
 
