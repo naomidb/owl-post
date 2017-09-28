@@ -7,6 +7,7 @@ def run(connection, **params):
 
     print('=' * 20 + '\nGenerating author list\n' + '=' * 20)
     response = connection.run_query(q)
+    print(response)
 
     author_dump = response.json()
     all_authors = {}

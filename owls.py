@@ -36,7 +36,7 @@ def get_template_type():
 
 def fill_details(key, item, connection):
     """
-    Given an item which is an instance of a VivoDomainObject, calls get_details and iterates through the list, prompting the user for the literal values.
+    Given an item, calls get_details and iterates through the list, prompting the user for the literal values.
     """
 
     print('*' * 20 + '\n' * 2 + "Working on " + key + '\n' * 2 + '*' * 20)
@@ -64,13 +64,28 @@ def fill_details(key, item, connection):
     elif key == 'Author':
         author = item
 
-        auth_num = raw_input("N number (if you do not know the n number, leave this blank): ")
+        auth_num = raw_input("N number: ")
         #If user does not know author n number, search for author
         if auth_num:
             author.n_num = auth_num
         else:
-            auth_name = raw_input("Author name: ")
-            #add author search here
+            have_auth = raw_input("Do you have a name for the author? (y/n) ")
+            if have_auth == 'y' or have_auth == 'Y':
+                fluff = {}
+                current_authors = queries.get_people.run(connection, **fluff)
+                auth_name = raw_input("Author name: ")
+
+                #search for author
+                match = match_input(auth_name, current_authors)
+                if match == 'none':
+                    create_auth = raw_input("This author is not in the database. Would you like to add them? (y/n) ")
+                    if create_auth == 'y' or create_auth == 'Y':
+                        print("Sorry, Owl Post cannot create authors at this time. Please create the author manually on your vivo site.")
+                    else:
+                        exit()
+                else:
+                    author.n_num = match
+                    print("The n number for this author is " + author.n_num)
 
     else:
         details = item.get_details()
@@ -124,6 +139,8 @@ def main(argv1):
 
     for key, val in params.items():
         fill_details(key, val, connection)
+
+    params['Upload_url'] = vivo_url
 
     response = template_mod.run(connection, **params)
     print(response)

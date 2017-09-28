@@ -2,19 +2,15 @@ import urllib
 
 #Preexisitng authors are identified with n number
 class Author(object):
-    def __init__(self, connection, existant):
+    def __init__(self, connection):
         #for key, val in data.items():
             #setattr(self, key, val)
         self.connection = connection
         self.type = "author"
 
-        if existant:
-            self.n_num = None
-            self.details = ['n_num']
-        else:
-            self.n_num = None
-            self.name = None
-            self.details = ['name']
+        self.n_num = None
+        self.name = None
+        self.details = ['n_num', 'name']
 
     def get_details(self):
         return self.details

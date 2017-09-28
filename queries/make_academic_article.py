@@ -5,7 +5,7 @@ from article import Article
 from journal import Journal
 
 def get_params(connection):
-    author = Author(connection, True)
+    author = Author(connection)
     article = Article(connection, False)
     journal = Journal(connection)
     params = {'Author': author, 'Article': article, 'Journal': journal}
@@ -31,42 +31,42 @@ def run(connection, **params):
         INSERT DATA {
             GRAPH <http://vitro.mannlib.cornell.edu/default/vitro-kb-2> 
             {
-                <http://vivo.school.edu/individual/{{ Article.n_num }}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://purl.org/ontology/bibo/AcademicArticle>  .
-                <http://vivo.school.edu/individual/{{ Article.n_num }}> <http://www.w3.org/2000/01/rdf-schema#label> "{{ Article.title }}" .
+                <{{Upload_url}}{{ Article.n_num }}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://purl.org/ontology/bibo/AcademicArticle>  .
+                <{{Upload_url}}{{ Article.n_num }}> <http://www.w3.org/2000/01/rdf-schema#label> "{{ Article.title }}" .
               
               {%- if Article.volume %}
-                <http://vivo.school.edu/individual/{{ Article.n_num }}> <http://purl.org/ontology/bibo/volume> "{{ Article.volume }}" .
+                <{{Upload_url}}{{ Article.n_num }}> <http://purl.org/ontology/bibo/volume> "{{ Article.volume }}" .
               {%- endif -%}
               
               {%- if Article.issue %}
-                <http://vivo.school.edu/individual/{{ Article.n_num }}> <http://purl.org/ontology/bibo/issue> "{{ Article.issue }}" .
+                <{{Upload_url}}{{ Article.n_num }}> <http://purl.org/ontology/bibo/issue> "{{ Article.issue }}" .
               {%- endif -%}
               
               {%- if Article.start_page %}
-                <http://vivo.school.edu/individual/{{ Article.n_num }}> <http://purl.org/ontology/bibo/pageStart> "{{ Article.start_page }}" .
+                <{{Upload_url}}{{ Article.n_num }}> <http://purl.org/ontology/bibo/pageStart> "{{ Article.start_page }}" .
               {%- endif -%}
               
               {%- if Article.end_page %}
-                <http://vivo.school.edu/individual/{{ Article.n_num }}> <http://purl.org/ontology/bibo/pageEnd> "{{ Article.end_page }}" .
+                <{{Upload_url}}{{ Article.n_num }}> <http://purl.org/ontology/bibo/pageEnd> "{{ Article.end_page }}" .
               {%- endif -%}
 
               {%- if Article.publication_year %}
-                <http://vivo.school.edu/individual/{{ Article.n_num }}> <http://vivoweb.org/ontology/core#dateTimeValue> <http://vivo.school.edu/individual/{{ Year }}> .
-                <http://vivo.school.edu/individual/{{ Year }}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://vivoweb.org/ontology/core#DateTimeValue> .
-                <http://vivo.school.edu/individual/{{ Year }}> <http://vivoweb.org/ontology/core#dateTime> "{{ Article.publication_year }}-01-01T00:00:00" .
-                <http://vivo.school.edu/individual/{{ Year }}> <http://vivoweb.org/ontology/core#dateTimePrecision> <http://vivoweb.org/ontology/core#yearPrecision> .
+                <{{Upload_url}}{{ Article.n_num }}> <http://vivoweb.org/ontology/core#dateTimeValue> <{{Upload_url}}{{ Year }}> .
+                <{{Upload_url}}{{ Year }}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://vivoweb.org/ontology/core#DateTimeValue> .
+                <{{Upload_url}}{{ Year }}> <http://vivoweb.org/ontology/core#dateTime> "{{ Article.publication_year }}-01-01T00:00:00" .
+                <{{Upload_url}}{{ Year }}> <http://vivoweb.org/ontology/core#dateTimePrecision> <http://vivoweb.org/ontology/core#yearPrecision> .
               {%- endif -%}
               
               {%- if Author.n_num %}
-                <http://vivo.school.edu/individual/{{ Relationship }}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://vivoweb.org/ontology/core#Authorship>  .
-                <http://vivo.school.edu/individual/{{ Relationship }}> <http://vivoweb.org/ontology/core#relates> <http://vivo.school.edu/individual/{{ Article.n_num }}> .
-                <http://vivo.school.edu/individual/{{ Relationship }}> <http://vivoweb.org/ontology/core#relates> <http://vivo.school.edu/individual/{{ Author.n_num }}> .
-                <http://vivo.school.edu/individual/{{ Article.n_num }}> <http://vivoweb.org/ontology/core#relatedBy> <http://vivo.school.edu/individual/{{ Relationship }}> .
+                <{{Upload_url}}{{ Relationship }}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://vivoweb.org/ontology/core#Authorship>  .
+                <{{Upload_url}}{{ Relationship }}> <http://vivoweb.org/ontology/core#relates> <{{Upload_url}}{{ Article.n_num }}> .
+                <{{Upload_url}}{{ Relationship }}> <http://vivoweb.org/ontology/core#relates> <{{Upload_url}}{{ Author.n_num }}> .
+                <{{Upload_url}}{{ Article.n_num }}> <http://vivoweb.org/ontology/core#relatedBy> <{{Upload_url}}{{ Relationship }}> .
               {%- endif -%}
               
               {%- if Journal.n_num %}
-                <http://vivo.school.edu/individual/{{ Article.n_num }}> <http://vivoweb.org/ontology/core#hasPublicationVenue> <http://vivo.school.edu/individual/{{ Journal.n_num }}> .
-                <http://vivo.school.edu/individual/{{ Journal.n_num }}> <http://vivoweb.org/ontology/core#publicationVenueFor> <http://vivo.school.edu/individual/{{ Article.n_num }}> .
+                <{{Upload_url}}{{ Article.n_num }}> <http://vivoweb.org/ontology/core#hasPublicationVenue> <{{Upload_url}}{{ Journal.n_num }}> .
+                <{{Upload_url}}{{ Journal.n_num }}> <http://vivoweb.org/ontology/core#publicationVenueFor> <{{Upload_url}}{{ Article.n_num }}> .
               {%- endif %}
             }
         }
