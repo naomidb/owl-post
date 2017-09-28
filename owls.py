@@ -31,7 +31,7 @@ def get_template_type():
     for key, val in template_options.items():
         print(str(key) + ': ' + val + '\n')
 
-    index = input("Write the number of your desired template type: ")
+    index = input("Write the number of your desired query: ")
     return template_options.get(index)
 
 def fill_details(key, item, connection):
@@ -77,17 +77,6 @@ def fill_details(key, item, connection):
         for feature in details:
             my_input = raw_input(str(feature) + ": ")
             setattr(item, feature, my_input)
-
-
-    """if item.type == 'journal':
-        params = (1,2)
-        journal_list = get_journals.run(connection, *params)
-    else:
-        print("Fill in the values for the following (if you do not have a value, leave it blank):")
-        details = item.get_details()
-        for feature in details:
-            my_input = raw_input(str(feature) + ": ")
-            setattr(item, feature, my_input)"""
 
 def match_input(title, existing_options):
     choices = {}

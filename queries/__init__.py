@@ -1,4 +1,5 @@
 import check_n_value
 import get_journals
+import get_people
 import make_journal
 import make_academic_article
