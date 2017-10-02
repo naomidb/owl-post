@@ -56,6 +56,14 @@ def run(connection, **params):
                 <{{Upload_url}}{{ Year }}> <http://vivoweb.org/ontology/core#dateTime> "{{ Article.publication_year }}-01-01T00:00:00" .
                 <{{Upload_url}}{{ Year }}> <http://vivoweb.org/ontology/core#dateTimePrecision> <http://vivoweb.org/ontology/core#yearPrecision> .
               {%- endif -%}
+
+              {%- if Article.doi %}
+                <{{Upload_url}}{{Article.n_num}}> <http://purl.org/ontology/bibo/doi> "{{ Article.doi }}" .
+              {%- endif -%}
+
+              {%- if Article.pubmed_id %}
+                <{{Upload_url}}{{Article.n_num}}> <http://purl.org/ontology/bibo/pmid> "{{ Article.pubmed_id }}" .
+              {%- endif -%}
               
               {%- if Author.n_num %}
                 <{{Upload_url}}{{ Relationship }}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://vivoweb.org/ontology/core#Authorship>  .
