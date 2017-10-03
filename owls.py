@@ -34,6 +34,8 @@ def user_query(connection):
 
     params['Upload_url'] = connection.vivo_url
 
+    print(connection.vivo_url)
+
     response = template_mod.run(connection, **params)
     print(response)
 
