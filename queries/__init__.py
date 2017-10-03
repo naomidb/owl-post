@@ -1,4 +1,6 @@
 import check_n_value
+import get_all_with_x_as_obj
+import get_all_with_x_as_subj
 import get_articles_for_author
 import get_journals
 import get_people

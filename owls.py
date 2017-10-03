@@ -5,6 +5,7 @@ import yaml
 
 from owlery import Connection
 import queries
+import workflows
 
 def get_config(config_path):
     try:
@@ -15,9 +16,30 @@ def get_config(config_path):
         exit()
     return config
 
-def get_template_type():
+def use_workflow(connection):
+    workflow = get_template_type("workflows")
+
+def user_query(connection):
+    template_type = get_template_type('queries')
+
+    head, sep, tail = template_type.partition('.')
+    template_choice = head
+    print(template_choice)
+
+    template_mod = getattr(queries, template_choice)
+    params = template_mod.get_params(connection)
+
+    for key, val in params.items():
+        fill_details(key, val, connection)
+
+    params['Upload_url'] = connection.vivo_url
+
+    response = template_mod.run(connection, **params)
+    print(response)
+
+def get_template_type(folder):
     dir = os.getcwd()
-    direc = os.path.join(dir, 'queries')
+    direc = os.path.join(dir, folder)
 
     template_options = {}
     count = 1
@@ -31,7 +53,7 @@ def get_template_type():
     for key, val in template_options.items():
         print(str(key) + ': ' + val + '\n')
 
-    index = input("Write the number of your desired query: ")
+    index = input("Enter your desired number: ")
     return template_options.get(index)
 
 def fill_details(key, item, connection):
@@ -65,15 +87,15 @@ def fill_details(key, item, connection):
         author = item
 
         auth_num = raw_input("N number: ")
-        #If user does not know author n number, search for author
+        #If user does not know author n number, search for author by name
         if auth_num:
             author.n_num = auth_num
         else:
-            have_auth = raw_input("Do you have a name for the author? (y/n) ")
-            if have_auth == 'y' or have_auth == 'Y':
+            auth_name = raw_input("Author name: ")
+
+            if auth_name:
                 fluff = {}
                 current_authors = queries.get_people.run(connection, **fluff)
-                auth_name = raw_input("Author name: ")
 
                 #search for author
                 match = match_input(auth_name, current_authors)
@@ -81,6 +103,7 @@ def fill_details(key, item, connection):
                     create_auth = raw_input("This author is not in the database. Would you like to add them? (y/n) ")
                     if create_auth == 'y' or create_auth == 'Y':
                         print("Sorry, Owl Post cannot create authors at this time. Please create the author manually on your vivo site.")
+                        #TODO: note-- VIVO stores names as Last, First
                     else:
                         exit()
                 else:
@@ -93,11 +116,11 @@ def fill_details(key, item, connection):
             my_input = raw_input(str(feature) + ": ")
             setattr(item, feature, my_input)
 
-def match_input(title, existing_options):
+def match_input(label, existing_options):
     choices = {}
     count = 1
     for key, val in existing_options.items():
-        if title.lower() in key.lower():
+        if label.lower() in key.lower():
             choices[count] = key
             count += 1
 
@@ -108,8 +131,8 @@ def match_input(title, existing_options):
 
         index = input("Do any of these match your input? (if none, write -1): ")
     if not index == -1:
-        title = choices.get(index)
-        match = existing_options.get(title)
+        label = choices.get(index)
+        match = existing_options.get(label)
     else:
         match = 'none'
 
@@ -128,22 +151,15 @@ def main(argv1):
 
     connection = Connection(vivo_url, check_url, email, password, update_endpoint, query_endpoint)
 
-    template_type = get_template_type()
-
-    head, sep, tail = template_type.partition('.')
-    template_choice = head
-    print(template_choice)
-
-    template_mod = getattr(queries, template_choice)
-    params = template_mod.get_params(connection)
-
-    for key, val in params.items():
-        fill_details(key, val, connection)
-
-    params['Upload_url'] = vivo_url
-
-    response = template_mod.run(connection, **params)
-    print(response)
+    task = raw_input("Are you running a (1) workflow or (2) single query? ")
+    if task == '1' or task == "workflow":
+        use_workflow(connection)
+    elif task == '2' or task == "single query":
+        user_query(connection)
+    else:
+        print(task, type(task))
+        print("Invalid entry")
+        exit()
 
 if __name__ == '__main__':
     main(sys.argv[1])
