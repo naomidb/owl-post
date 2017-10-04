@@ -3,11 +3,11 @@ from VDO import VivoDomainObject
 class Article(VivoDomainObject):
     def __init__(self, connection):
         self.connection = connection
-        self.type = "article"
+        self.type = "academic_article"
         self.category = "publication"
         
         self.n_number = None
-        self.title = None
+        self.name = None
         self.volume = None
         self.issue = None
         self.start_page = None
@@ -15,7 +15,7 @@ class Article(VivoDomainObject):
         self.publication_year = None
         self.doi = None
         self.pubmed_id = None
-        self.details = ['n_number', 'title', 'volume', 'issue', 'start_page', 'end_page', 'publication_year', 'doi', 'pubmed_id']
+        self.details = ['volume', 'issue', 'start_page', 'end_page', 'publication_year', 'doi', 'pubmed_id']
 
     # TODO: figure out why i wrote this here????
     # def get_matching_journals(self):

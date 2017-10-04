@@ -30,11 +30,7 @@ def user_query(connection):
     params = template_mod.get_params(connection)
 
     for key, val in params.items():
-        fill_details(key, val, connection)
-
-    params['Upload_url'] = connection.vivo_url
-
-    print(connection.vivo_url)
+        fill_details(key, val, template_choice, connection)
 
     response = template_mod.run(connection, **params)
     print(response)
@@ -58,65 +54,64 @@ def get_template_type(folder):
     index = input("Enter your desired number: ")
     return template_options.get(index)
 
-def fill_details(key, item, connection):
+def fill_details(key, item, task, connection):
     """
     Given an item, calls get_details and iterates through the list, prompting the user for the literal values.
     """
 
     print('*' * 20 + '\n' * 2 + "Working on " + key + '\n' * 2 + '*' * 20)
-    print("Fill in the values for the following (if you do not have a value, leave it blank):")
-    #For journals, check user input against pre-existing journals
-    if key == 'Journal':
-        journal = item
+    sub_task = "make_" + item.type
 
-        journal.title = raw_input("title: ")
-        #if user did not leave title blank, check if title is in list of current journals
-        if journal.title:
-            deets = {}
-            current_journals = queries.get_journals.run(connection, **deets)
-
-            match = match_input(journal.title, current_journals)
-            if match == 'none':
-                journal.create_n()
-                params = {'New Journal': journal}
-                queries.make_journal.run(connection, **params)
-
-            else:
-                journal.n_num = match
-                print("The n number for this journal is " + journal.n_num)
-
-    elif key == 'Author':
-        author = item
-
-        auth_num = raw_input("N number: ")
-        #If user does not know author n number, search for author by name
-        if auth_num:
-            author.n_num = auth_num
-        else:
-            auth_name = raw_input("Author name: ")
-
-            if auth_name:
-                fluff = {}
-                current_authors = queries.get_people.run(connection, **fluff)
-
-                #search for author
-                match = match_input(auth_name, current_authors)
-                if match == 'none':
-                    create_auth = raw_input("This author is not in the database. Would you like to add them? (y/n) ")
-                    if create_auth == 'y' or create_auth == 'Y':
-                        print("Sorry, Owl Post cannot create authors at this time. Please create the author manually on your vivo site.")
-                        #TODO: note-- VIVO stores names as Last, First
-                    else:
-                        exit()
-                else:
-                    author.n_num = match
-                    print("The n number for this author is " + author.n_num)
-
+    print("Fill in the values for the following (if you do not have a value, leave blank):")
+    #Check if user knows n number
+    obj_n = raw_input("N number: ")
+    if obj_n:
+        item.n_number = obj_n
+        #TODO: add label check
     else:
-        details = item.get_details()
-        for feature in details:
-            my_input = raw_input(str(feature) + ": ")
-            setattr(item, feature, my_input)
+        #For non-Thing objects, ask for further detail
+        if key != 'Thing':
+            #Ask for label
+            obj_name = raw_input(key + " name/title: ")
+            if obj_name:
+                item.name = obj_name
+                #Check if label already exists
+                deets = {}
+                search_query = "get_" + item.type + "_list"
+                try:
+                    query_path = getattr(queries, search_query)
+
+                    current_list = query_path.run(connection, **deets)
+                    match = match_input(obj_name, current_list)
+                except Exception as e:
+                    match = 'none'
+
+                if match == 'none':
+                    if sub_task != task:
+                        #If this entity is not the original query, make entity
+                        create_obj = raw_input("This " + item.type + " is not in the database. Would you like to add it? (y/n) ")
+                        if create_obj == 'y' or create_obj == 'Y':
+                            try:
+                                update_path = getattr(queries, sub_task)
+                                params = {key: item}
+                                response = update_path.run(connection, **params)
+                                print(response)
+                            except Exception as e:
+                                print("Owl Post can not create a(n) " + item.type + " at this time. Please go to your vivo site and make it manually.")
+                    else:
+                        #Get additional details
+                        details = item.get_details()
+                        for feature in details:
+                            item_info = raw_input(str(feature) + ": ")
+                            setattr(item, feature, item_info)
+                else:
+                    item.n_number = match
+                    print("The n number for this " + item.type + "is " + item.n_number)
+            else:
+                #TODO: Decide what to do if no name
+                pass;
+        else:
+            print("Look up the n number and try again.")
 
 def match_input(label, existing_options):
     choices = {}

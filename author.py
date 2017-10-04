@@ -4,9 +4,9 @@ from VDO import VivoDomainObject
 class Author(VivoDomainObject):
     def __init__(self, connection):
         self.connection = connection
-        self.type = "author"
+        self.type = "person"
         self.category = "person"
 
         self.n_number = None
         self.name = None
-        self.details = ['n_number', 'name']
+        self.details = []
