@@ -6,13 +6,14 @@ from journal import Journal
 
 def get_params(connection):
     author = Author(connection)
-    article = Article(connection, False)
+    article = Article(connection)
     journal = Journal(connection)
     params = {'Author': author, 'Article': article, 'Journal': journal}
     return params
 
 
 def run(connection, **params):
+    params['Article'].create_n()
     relationship_id = connection.gen_n()
     params['Relationship'] = relationship_id
 

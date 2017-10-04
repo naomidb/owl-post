@@ -1,44 +1,30 @@
-class Article(object):
-    def __init__(self, connection, existant):
+from VDO import VivoDomainObject
+
+class Article(VivoDomainObject):
+    def __init__(self, connection):
         self.connection = connection
         self.type = "article"
+        self.category = "publication"
         
-        if existant:
-            self.n_num = None
-            self.details = ['n_num']
-        else:
-            self.n_num = None
-            self.create_n()
+        self.n_number = None
+        self.title = None
+        self.volume = None
+        self.issue = None
+        self.start_page = None
+        self.end_page = None
+        self.publication_year = None
+        self.doi = None
+        self.pubmed_id = None
+        self.details = ['n_number', 'title', 'volume', 'issue', 'start_page', 'end_page', 'publication_year', 'doi', 'pubmed_id']
 
-            self.title = None
-            self.volume = None
-            self.issue = None
-            self.start_page = None
-            self.end_page = None
-            self.publication_year = None
-            self.doi = None
-            self.pubmed_id = None
-            self.details = ['title', 'volume', 'issue', 'start_page', 'end_page', 'publication_year', 'doi', 'pubmed_id']
+    # TODO: figure out why i wrote this here????
+    # def get_matching_journals(self):
+    #     params = {}
+    #     journal_list = get_journals.run(self.connection, **params)
 
-    def get_details(self):
-        return self.details
+    #     journal_options = {}
+    #     for key, val in journal_list.items():
+    #         if self.journal == key:
+    #             journal_options[key] = val
 
-    def create_n(self):
-        self.n_num = self.connection.gen_n()
-
-    def get_matching_journals(self):
-        params = {}
-        journal_list = get_journals.run(self.connection, **params)
-
-        journal_options = {}
-        for key, val in journal_list.items():
-            if self.journal == key:
-                journal_options[key] = val
-
-        return journal_options
-    
-    def final_check(self, other_n):
-        if self.n_num == other_n:
-            self.n_num = self.connection.gen_n()
-        pass
-
+    #     return journal_options

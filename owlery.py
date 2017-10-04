@@ -32,7 +32,7 @@ class Connection(object):
         #create a Thing to test n number
         thing_check = Thing(self)
         thing_check.n_num = n
-        params = {'N number': thing_check}
+        params = {'Thing': thing_check}
         #use query to check if n number exists
         response = check_n_value.run(self, **params)
         return response
