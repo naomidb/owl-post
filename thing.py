@@ -6,4 +6,4 @@ class Thing(object):
         self.type = "thing"
 
         self.n_number = None
-        self.details = ['n_number']
+        self.details = []

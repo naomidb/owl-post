@@ -2,11 +2,11 @@ from thing import Thing
 
 def get_params(connection):
     thing = Thing(connection)
-    params = {'N number': thing,}
+    params = {'Thing': thing,}
     return params
 
 def run(connection, **params):
-    subj = params['Upload_url'] + params['N number'].n_num
+    subj = connection.vivo_url + params['Thing'].n_number
 
     q = """ SELECT ?s ?p ?o WHERE{{<{}> ?p ?o .}} """.format(subj)
 

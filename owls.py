@@ -19,7 +19,20 @@ def get_config(config_path):
 def use_workflow(connection):
     workflow = get_template_type("workflows")
 
-def user_query(connection):
+    head, sep, tail = workflow.partition('.')
+    workflow_choice = head
+    print(workflow_choice)
+
+    workflow_mod = getattr(workflows, workflow_choice)
+    params = workflow_mod.get_params(connection)
+
+    for key, val in params.items():
+        fill_details(key, val, workflow_choice, connection)
+
+    response = workflow_mod.run(connection, **params)
+    print(response)
+
+def use_query(connection):
     template_type = get_template_type('queries')
 
     head, sep, tail = template_type.partition('.')
@@ -152,9 +165,8 @@ def main(argv1):
     if task == '1' or task == "workflow":
         use_workflow(connection)
     elif task == '2' or task == "single query":
-        user_query(connection)
+        use_query(connection)
     else:
-        print(task, type(task))
         print("Invalid entry")
         exit()
 
