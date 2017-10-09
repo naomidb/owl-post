@@ -1,2 +1,3 @@
 import delete_entity
 import get_all_triples
+import merge_entities

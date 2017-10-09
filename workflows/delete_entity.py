@@ -17,7 +17,6 @@ def run(connection, **params):
 
     #Fix label
     format_triples = format_triples.encode('utf-8')
-    print(type(format_triples))
     format_triples = str.replace(format_triples, "<" + label + ">", "\"" + label + "\"")
 
     q = """

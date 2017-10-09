@@ -10,7 +10,7 @@ def run(connection, **params):
 
     q = """ SELECT ?s ?p ?o WHERE{{<{}> ?p ?o .}} """.format(subj)
 
-    print('=' * 20 + '\nGenerating\n' + '=' * 20)
+    print('=' * 20 + '\nGenerating triples\n' + '=' * 20)
     response = connection.run_query(q)
     print(response)
 

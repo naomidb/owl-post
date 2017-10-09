@@ -55,8 +55,7 @@ class Connection(object):
         }
         data = urllib.urlencode(payload)
         response = urllib.urlopen(self.update_endpoint, data)
-        print "Status code:", response.code
-        return response
+        return response.code
 
     def run_query(self, template):
         print("Query:\n" + template)

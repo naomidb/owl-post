@@ -6,6 +6,6 @@ class Journal(VivoDomainObject):
         self.type = "journal"
         self.category = "venue"
         
-        self.number = None
+        self.n_number = None
         self.name = None
         self.details = []
