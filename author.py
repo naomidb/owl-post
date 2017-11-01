@@ -9,4 +9,10 @@ class Author(VivoDomainObject):
 
         self.n_number = None
         self.name = None
-        self.details = []
+        self.first = None
+        self.middle = None
+        self.last = None
+        self.email = None
+        self.phone = None
+        self.title = None
+        self.details = ['email', 'phone', 'title']

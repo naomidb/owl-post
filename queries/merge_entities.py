@@ -1,7 +1,7 @@
 from queries import get_label
 from thing import Thing
-from workflows import delete_entity
-from workflows import get_all_triples
+from queries import delete_entity
+from queries import get_all_triples
 
 def get_params(connection):
     thing1 = Thing(connection)

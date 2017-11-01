@@ -1,6 +1,6 @@
 from queries import get_label
 from thing import Thing
-from workflows import get_all_triples
+from queries import get_all_triples
 
 def get_params(connection):
     thing = Thing(connection)

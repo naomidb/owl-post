@@ -16,15 +16,3 @@ class Article(VivoDomainObject):
         self.doi = None
         self.pubmed_id = None
         self.details = ['volume', 'issue', 'start_page', 'end_page', 'publication_year', 'doi', 'pubmed_id']
-
-    # TODO: figure out why i wrote this here????
-    # def get_matching_journals(self):
-    #     params = {}
-    #     journal_list = get_journals.run(self.connection, **params)
-
-    #     journal_options = {}
-    #     for key, val in journal_list.items():
-    #         if self.journal == key:
-    #             journal_options[key] = val
-
-    #     return journal_options

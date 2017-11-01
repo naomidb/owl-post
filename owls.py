@@ -5,7 +5,6 @@ import yaml
 
 from owlery import Connection
 import queries
-import workflows
 
 def get_config(config_path):
     try:
@@ -16,23 +15,7 @@ def get_config(config_path):
         exit()
     return config
 
-def use_workflow(connection):
-    workflow = get_template_type("workflows")
-
-    head, sep, tail = workflow.partition('.')
-    workflow_choice = head
-    print(workflow_choice)
-
-    workflow_mod = getattr(workflows, workflow_choice)
-    params = workflow_mod.get_params(connection)
-
-    for key, val in params.items():
-        fill_details(key, val, workflow_choice, connection)
-
-    response = workflow_mod.run(connection, **params)
-    print(response)
-
-def use_query(connection):
+def prepare_query(connection):
     template_type = get_template_type('queries')
 
     head, sep, tail = template_type.partition('.')
@@ -71,7 +54,6 @@ def fill_details(key, item, task, connection):
     """
     Given an item, calls get_details and iterates through the list, prompting the user for the literal values.
     """
-
     print('*' * 20 + '\n' * 2 + "Working on " + key + '\n' * 2 + '*' * 20)
     sub_task = "make_" + item.type
 
@@ -85,9 +67,25 @@ def fill_details(key, item, task, connection):
         #For non-Thing objects, ask for further detail
         if key != 'Thing':
             #Ask for label
-            obj_name = raw_input(key + " name/title: ")
+            if key == 'Author':
+                first_name = raw_input("First name: ")
+                if first_name:
+                    item.first = first_name
+
+                middle_name = raw_input("Middle name: ")
+                if middle_name:
+                    item.middle = middle_name
+
+                last_name = raw_input("Last name: ")
+                if last_name:
+                    item.last = last_name
+                obj_name = last_name + ", " + first_name + " " + middle_name
+
+            else:
+                obj_name = raw_input(key + " name/title: ")
+
             if obj_name:
-                item.name = obj_name
+                item.name = scrub(obj_name)
                 #Check if label already exists
                 deets = {}
                 search_query = "get_" + item.type + "_list"
@@ -100,6 +98,10 @@ def fill_details(key, item, task, connection):
                     match = 'none'
 
                 if match == 'none':
+                    #temporary fix for other types of publciations
+                    if task == 'make_letter':
+                        task = 'make_academic_article'
+
                     if sub_task != task:
                         #If this entity is not the original query, make entity
                         create_obj = raw_input("This " + item.type + " is not in the database. Would you like to add it? (y/n) ")
@@ -148,6 +150,10 @@ def match_input(label, existing_options):
 
     return match
 
+def scrub(label):
+    clean_label = label.replace('"', '\\"')
+    return clean_label
+
 def main(argv1):
     config_path = argv1
     config = get_config(config_path)
@@ -161,14 +167,7 @@ def main(argv1):
 
     connection = Connection(vivo_url, check_url, email, password, update_endpoint, query_endpoint)
 
-    task = raw_input("Are you running a (1) workflow or (2) single query? ")
-    if task == '1' or task == "workflow":
-        use_workflow(connection)
-    elif task == '2' or task == "single query":
-        use_query(connection)
-    else:
-        print("Invalid entry")
-        exit()
+    prepare_query(connection)
 
 if __name__ == '__main__':
     main(sys.argv[1])

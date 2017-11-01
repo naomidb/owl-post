@@ -28,11 +28,11 @@ def run(connection, **params):
     params['Article'].final_check(params['Journal'].n_number)
 
     # template data into q
-    q = Environment().from_string("""\
+    q = Environment().from_string(u"""\
         INSERT DATA {
             GRAPH <http://vitro.mannlib.cornell.edu/default/vitro-kb-2> 
             {
-                <{{upload_url}}{{ Article.n_number }}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://purl.org/ontology/bibo/AcademicArticle>  .
+                <{{upload_url}}{{ Article.n_number }}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://purl.org/ontology/bibo/Letter>  .
                 <{{upload_url}}{{ Article.n_number }}> <http://www.w3.org/2000/01/rdf-schema#label> "{{ Article.name }}" .
               
               {%- if Article.volume %}
@@ -82,6 +82,6 @@ def run(connection, **params):
         """)
 
     # send data to vivo
-    print('=' * 20 + "\nAdding article with pre-existing author\n" + '=' * 20)
+    print('=' * 20 + "\nAdding letter with pre-existing author\n" + '=' * 20)
     response = connection.run_update(q.render(**params))
     return response
