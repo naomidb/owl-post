@@ -95,6 +95,7 @@ def fill_details(key, item, task, connection):
                     current_list = query_path.run(connection, **deets)
                     match = match_input(obj_name, current_list)
                 except Exception as e:
+                    print(e)
                     match = 'none'
 
                 if match == 'none':
@@ -131,20 +132,22 @@ def fill_details(key, item, task, connection):
 def match_input(label, existing_options):
     choices = {}
     count = 1
+    print(existing_options)
     for key, val in existing_options.items():
-        if label.lower() in key.lower():
-            choices[count] = key
+        if label.lower() in val.lower():
+            choices[count] = (key, val)
             count += 1
 
     index = -1
     if choices:
         for key, val in choices.items():
-            print(str(key) + ': ' + val + '\n')
+            number, label = val
+            print(str(key) + ': ' + label + '(' + number + ')\n')
 
         index = input("Do any of these match your input? (if none, write -1): ")
     if not index == -1:
-        label = choices.get(index)
-        match = existing_options.get(label)
+        nnum, label = choices.get(index)
+        match = nnum
     else:
         match = 'none'
 

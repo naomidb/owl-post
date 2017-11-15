@@ -1,7 +1,7 @@
 from jinja2 import Environment
 
-from author import Author
 from article import Article
+from author import Author
 from journal import Journal
 
 def get_params(connection):

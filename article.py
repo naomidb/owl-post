@@ -16,3 +16,15 @@ class Article(VivoDomainObject):
         self.doi = None
         self.pubmed_id = None
         self.details = ['volume', 'issue', 'start_page', 'end_page', 'publication_year', 'doi', 'pubmed_id']
+
+    def lookup(self, connection):
+        params = {'Article': self}
+        info = get_article_info.run(connection, **params)
+        self.name = info['title']
+        self.volume = info['volume']
+        self.issue = info['issue']
+        self.start_page = info['start page']
+        self.end_page = info['end page']
+        self.publication_year = info['year']
+        self.doi = info['doi']
+        self.pubmed_id = info['pmid']

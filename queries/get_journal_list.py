@@ -8,7 +8,6 @@ def run(connection, **params):
     print('=' * 20 + '\nGenerating journal list\n' + '=' * 20)
     response = connection.run_query(q)
     print(response)
-    print(type(response))
 
     journal_dump = response.json()
     all_journals = {}
@@ -16,6 +15,6 @@ def run(connection, **params):
         j_name = listing['label']['value']
         j_url = listing['u']['value']
         j_n = j_url.rsplit('/', 1)[-1]
-        all_journals[j_name] = j_n       
+        all_journals[j_n] = j_name       
 
     return all_journals
