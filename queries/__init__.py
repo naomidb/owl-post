@@ -1,5 +1,7 @@
+import add_author_to_pub
 import check_n_value
 import delete_entity
+import find_n_for_label
 import get_all_triples
 import get_all_with_x_as_obj
 import get_all_with_x_as_subj
@@ -10,8 +12,10 @@ import get_author_info
 import get_journal_list
 import get_label
 import get_person_list
+import get_vcard
 import make_academic_article
 import make_journal
 import make_letter
 import make_person
+import make_publisher
 import merge_entities

@@ -25,6 +25,7 @@ def run(connection, **params):
 
     #make sure none of the n numbers generated before inserting triples have repeating n numbers
     params['Article'].final_check(relationship_id)
+    params['Journal'].final_check(relationship_id)
     params['Article'].final_check(params['Journal'].n_number)
 
     # template data into q
