@@ -1,4 +1,5 @@
 from bibtexparser import loads
+import os.path
 import sys
 import yaml
 
@@ -46,8 +47,6 @@ def process(connection, data):
 
     #Fill out journal info and create journal if it does not exist
     try:
-        #TODO: add journal filter
-        #TODO: publisher filter
         #TODO (maybe): check if existing journal has publisher
         journal_name = data['journal']
         clean_jname = check_filter(journal_name.title(), 'journal')
@@ -155,6 +154,80 @@ def match_input(connection, label, obj_type):
         #TODO: deal with duplicates
         return None
 
+def check_filter(label, category):
+    cleanfig_path = os.path.join("filters", "extras.yaml")
+    with open(cleanfig_path, 'r') as config_file:
+        cleanfig = yaml.load(config_file.read())
+    #primary cleaning
+    abbrev_table = cleanfig.get('abbrev_table')
+    label += " " #add trailing space in case abbreviation is end of string
+    label = label.replace("  ", " ")
+    label = label.replace("\\", "") #can not have escape character when using update api
+    for abbrev in abbrev_table:
+        label = label.replace(abbrev, abbrev_table[abbrev])
+    if label[-1] == " ":
+        label = label[:-1] #remove final space
+
+    #match against filter
+    filter_file = category + "_filter.txt"
+    filter_path = os.path.join("filters", filter_file)
+    pairs = {}
+    with open(filter_path) as fil:
+        content = fil.readlines()
+        for line in content:
+            key, val = line.split("|")
+            pairs[key] = val
+
+        for key, val in pairs.items():
+            if label == key:
+                label = val
+                break
+    
+    #return clean_label
+    return label
+
+def create_journal(connection, journal_name, publisher_name):
+    global PUBLISHER_COUNT
+    global JOURNAL_COUNT
+    clean_pname = check_filter(publisher_name.title(), 'publisher')
+    publisher_n = match_input(connection, clean_pname, 'publisher')
+
+    reqs = queries.make_journal.get_params(connection)
+    reqs['Journal'].name = journal_name
+    if publisher_n:
+        reqs['Publisher'].n_number = publisher_n
+    else:
+        reqs['Publisher'].name = clean_pname
+        PUBLISHER_COUNT += 1
+
+    response = queries.make_journal.run(connection, **reqs)
+    print(response)
+    if response:
+        JOURNAL_COUNT += 1
+        return reqs['Journal'].n_number
+    else:
+        return None
+
+def add_authors(connection, article, author_str):
+    global AUTHOR_COUNT
+    authors = author_str.split(" and ")
+    for person in authors:
+        args = queries.add_author_to_pub.get_params(connection)
+        author_n = match_authors(connection, person)
+        args['Author'].n_number = author_n
+        args['Article'].n_number = article.n_number
+        args['Author'].name = person
+
+        #TODO: only add authors that are not already on the pub
+        old_author = False
+        if author_n:
+            old_author = queries.check_author_on_pub.run(connection, **args)
+        if not old_author:
+            response = queries.add_author_to_pub.run(connection, **args)
+            print(response)
+            if response:
+                AUTHOR_COUNT += 1 
+
 def match_authors(connection, label):
     deets = queries.find_n_for_label.get_params(connection)
     deets['Thing'].name = label
@@ -185,67 +258,6 @@ def match_authors(connection, label):
     #if len(choices) > 1:
         #stuff
 
-def check_filter(label, category):
-    with open('extras.yaml', 'r') as config_file:
-        cleanfig = yaml.load(config_file.read())
-    #primary cleaning
-    
-
-    #match against filter
-
-    filter_file = category + "_filter.txt"
-    pairs = {}
-    with open(filter_file) as fil:
-        content = fil.readlines()
-        for line in content:
-            key, val = line.split("|")
-            pairs[key] = val
-    
-
-    #return clean_label
-    return label
-
-def create_journal(connection, journal_name, publisher_name):
-    global PUBLISHER_COUNT
-    global JOURNAL_COUNT
-    #clean_pname = check_publisher_filter(publisher_name)
-    clean_pname = publisher_name
-    publisher_n = match_input(connection, clean_pname, 'publisher')
-
-    reqs = queries.make_journal.get_params(connection)
-    reqs['Journal'].name = journal_name
-    if publisher_n:
-        reqs['Publisher'].n_number = publisher_n
-    else:
-        reqs['Publisher'].name = publisher_name.title()
-        PUBLISHER_COUNT += 1
-
-    response = queries.make_journal.run(connection, **reqs)
-    print(response)
-    if response:
-        JOURNAL_COUNT += 1
-        return reqs['Journal'].n_number
-
-def add_authors(connection, article, author_str):
-    global AUTHOR_COUNT
-    authors = author_str.split(" and ")
-    for person in authors:
-        args = queries.add_author_to_pub.get_params(connection)
-        author_n = match_authors(connection, person)
-        args['Author'].n_number = author_n
-        args['Article'].n_number = article.n_number
-        args['Author'].name = person
-
-        #TODO: only add authors that are not already on the pub
-        old_author = False
-        if author_n:
-            old_author = queries.check_author_on_pub.run(connection, **args)
-        if not old_author:
-            response = queries.add_author_to_pub.run(connection, **args)
-            print(response)
-            if response:
-                AUTHOR_COUNT += 1 
-
 def main(argv1):
     config_path = argv1
     config = get_config(config_path)
@@ -272,6 +284,6 @@ def main(argv1):
         number, data = entry
         process(connection, data)
 
-    print("Summary of new items:\n  >Articles: ", ARTICLE_COUNT, "\n  >Journals: ", JOURNAL_COUNT, "\n  >Publishers: ", PUBLISHER_COUNT, "\n  >People: ", AUTHOR_COUNT)
+    print("Summary of new items:  >Articles: ", ARTICLE_COUNT, "  >Journals: ", JOURNAL_COUNT, "  >Publishers: ", PUBLISHER_COUNT, "  >People: ", AUTHOR_COUNT)
 if __name__ == '__main__':
     main(sys.argv[1])
