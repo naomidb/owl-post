@@ -38,59 +38,107 @@ def bib2csv(bib_data):
     return csv_data
 
 def process(connection, data):
+    global ARTICLE_COUNT
     params = queries.make_academic_article.get_params(connection)
     article = params['Article']
     journal = params['Journal']
-
     #TODO: make sure 'type' is Article
+
+    #Fill out journal info and create journal if it does not exist
+    try:
+        #TODO: add journal filter
+        #TODO: publisher filter
+        #TODO (maybe): check if existing journal has publisher
+        journal_name = data['journal']
+        clean_jname = check_filter(journal_name.title(), 'journal')
+        journal_n = match_input(connection, clean_jname, 'journal')
+
+        if not journal_n:
+            try:
+                publisher_name = data['publisher']
+            except KeyError as e:
+                publisher_name = None
+            journal_n = create_journal(connection, clean_jname, publisher_name)
+
+        journal.n_number = journal_n
+    except KeyError as e:
+        journal.n_number = None
+ 
     author_str = data['author']
 
     title = data['title']
-    article_n = match_input(connection, title, 'academic_article') 
+    article_n = match_input(connection, title, 'academic_article')
+
     if article_n:
-        #article already exists
+        #article with same name already exists
+        article.n_number = article_n
+        if journal_name:
+            pubs_journal = queries.get_journal_on_pub.run(connection, **params)
+            try:
+                pubs_j_n, pubs_j_name = pubs_journal
+            except Exception, e:
+                pass
+            if not pubs_journal:
+                #if article has no journal, add journal
+                queries.add_journal_to_pub.run(connection, **params)
+            if pubs_journal:
+                #if journal on article does not match, create new article with this journal.
+                if pubs_j_n != journal.n_number:
+                    article_n = None
+                    article.n_number = None
+
         add_authors(connection, article, author_str)
         return
-    article.title = title
 
-    doi = data['doi']
-    #match_input(connection, doi, 'doi')
-    article.doi = doi
+    if not article_n:
+        article.name = title
+        #get article info for non-existant articles
+        try:
+            doi = data['doi']
+            #match_input(connection, doi, 'doi')
+            article.doi = doi
+        except KeyError as e:
+            pass
 
-    keyword = data['keyword']
+        try:
+            keyword = data['keyword']
+        except KeyError as e:
+            pass
 
-    pages = data['pages']
-    try:
-        start, end = pages.split('-')
-    except ValueError as e:
-        start = pages
-        end = None
+        try:
+            pages = data['pages']
+            try:
+                start, end = pages.split('-')
+            except ValueError as e:
+                start = pages
+                end = None
+            article.start_page = start
+            article.end_page = end
+        except KeyError as e:
+            pass
 
-    volume = data['volume']
-    article.volume = volume
+        try:
+            volume = data['volume']
+            article.volume = volume
+        except KeyError as e:
+            pass
 
-    year = data['year']
-    article.publication_year = year
+        try:
+            year = data['year']
+            article.publication_year = year
+        except KeyError as e:
+            pass
 
-    #TODO: add journal filter
-    #TODO: publisher filter
-    journal_name = data['journal']
-    clean_jname = check_journal_filter(journal_name)
-    journal_n = match_input(connection, clean_jname, 'journal')
-    if journal_n:
-        journal.n_number = journal_n
-    else:
-        publisher_name = data['publisher']
-        create_journal(connection, journal_name, publisher_name)    
-    
-    response = queries.make_academic_article.run(connection, **params)
-    if response:
-        AUTHOR_COUNT += 1    
+        response = queries.make_academic_article.run(connection, **params)
+        print(response)
+        if response:
+            ARTICLE_COUNT += 1     
+        
     add_authors(connection, article, author_str)
 
 def match_input(connection, label, obj_type):
     #TODO: special match function for doi
-    deets = queries.find_n_for_label.get_params()
+    deets = queries.find_n_for_label.get_params(connection)
     deets['Thing'].name = label
     deets['Thing'].category = obj_type
 
@@ -108,15 +156,15 @@ def match_input(connection, label, obj_type):
         return None
 
 def match_authors(connection, label):
-    deets = queries.find_n_for_label.get_params()
+    deets = queries.find_n_for_label.get_params(connection)
     deets['Thing'].name = label
-    deets['Thing'].category = 'author'
+    deets['Thing'].category = 'person'
 
-    current_list = queroes.find_n_for_label.run(connection, **deets)
+    current_list = queries.find_n_for_label.run(connection, **deets)
     choices = {}
     #perfect match
     for key, val in current_list.items():
-        if label.lower() = val.lower():
+        if label.lower() == val.lower():
             choices[key] = val
 
     if len(choices) == 1:
@@ -134,18 +182,34 @@ def match_authors(connection, label):
                 return key
 
     #check against wos
-    if len(choices) > 1:
+    #if len(choices) > 1:
         #stuff
 
-def check_journal_filter(label):
+def check_filter(label, category):
+    with open('extras.yaml', 'r') as config_file:
+        cleanfig = yaml.load(config_file.read())
     #primary cleaning
+    
 
     #match against filter
 
-    return clean_label
+    filter_file = category + "_filter.txt"
+    pairs = {}
+    with open(filter_file) as fil:
+        content = fil.readlines()
+        for line in content:
+            key, val = line.split("|")
+            pairs[key] = val
+    
+
+    #return clean_label
+    return label
 
 def create_journal(connection, journal_name, publisher_name):
-    clean_pname = check_publisher_filter(publisher_name)
+    global PUBLISHER_COUNT
+    global JOURNAL_COUNT
+    #clean_pname = check_publisher_filter(publisher_name)
+    clean_pname = publisher_name
     publisher_n = match_input(connection, clean_pname, 'publisher')
 
     reqs = queries.make_journal.get_params(connection)
@@ -153,27 +217,34 @@ def create_journal(connection, journal_name, publisher_name):
     if publisher_n:
         reqs['Publisher'].n_number = publisher_n
     else:
-        reqs['Publisher'].name = publisher_name
+        reqs['Publisher'].name = publisher_name.title()
         PUBLISHER_COUNT += 1
 
     response = queries.make_journal.run(connection, **reqs)
+    print(response)
     if response:
         JOURNAL_COUNT += 1
-    print(response)
+        return reqs['Journal'].n_number
 
 def add_authors(connection, article, author_str):
-    authors = author_str.split(" and")
+    global AUTHOR_COUNT
+    authors = author_str.split(" and ")
     for person in authors:
-        args = queries.add_author.get_params(connection)
-        author_n = match_input(connection, person)
+        args = queries.add_author_to_pub.get_params(connection)
+        author_n = match_authors(connection, person)
         args['Author'].n_number = author_n
         args['Article'].n_number = article.n_number
+        args['Author'].name = person
 
-        response = queries.add_author.run(connection, **args)
-        if response:
-            AUTHOR_COUNT += 1
-        print(response)
-
+        #TODO: only add authors that are not already on the pub
+        old_author = False
+        if author_n:
+            old_author = queries.check_author_on_pub.run(connection, **args)
+        if not old_author:
+            response = queries.add_author_to_pub.run(connection, **args)
+            print(response)
+            if response:
+                AUTHOR_COUNT += 1 
 
 def main(argv1):
     config_path = argv1
@@ -201,6 +272,6 @@ def main(argv1):
         number, data = entry
         process(connection, data)
 
-    print("Summary of new items:\n  >Articles: " + ARTICLE_COUNT + "\n  >Journals: " + JOURNAL_COUNT + "\n  >Publishers: " + PUBLISHER_COUNT + "\n  >People: " + AUTHOR_COUNT)
+    print("Summary of new items:\n  >Articles: ", ARTICLE_COUNT, "\n  >Journals: ", JOURNAL_COUNT, "\n  >Publishers: ", PUBLISHER_COUNT, "\n  >People: ", AUTHOR_COUNT)
 if __name__ == '__main__':
     main(sys.argv[1])

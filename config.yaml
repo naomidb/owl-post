@@ -7,4 +7,4 @@ query_endpoint: 'http://localhost:8080/vivo/api/sparqlQuery'
 checking_url: 'http://localhost:8080/vivo/display/'
 upload_url: 'http://vivo.school.edu/individual/'
 
-input_file: 'data_in/09_07_2017.bib'
+input_file: 'data_in/testing.bib'

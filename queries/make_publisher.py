@@ -6,22 +6,22 @@ def get_params(connection):
     return params
 
 def run(connection, **params):
-    publisher = params.get('Publisher')
-    upload_url = connection.vivo_url
+    publisher.create_n()
+    publisher_url = connection.vivo_url + params['Publisher'].n_number
 
-    if publisher.n_number == None:
-        publisher.create_n()
-
+    #template data into q
     q = """
     INSERT DATA {{
         GRAPH <http://vitro.mannlib.cornell.edu/default/vitro-kb-2>
         {{
-            <{url}{Publisher.n_number}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://vivoweb.org/ontology/core#Publisher> .
-            <{url}{Publisher.n_number}> <http://www.w3.org/2000/01/rdf-schema#label> "{Publisher.name}" .
+            <{PUBLISHER}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Thing> .
+            <{PUBLISHER}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://vivoweb.org/ontology/core#Publisher> .
+            <{PUBLISHER}> <http://www.w3.org/2000/01/rdf-schema#label> "{NAME}" .      
         }}
     }}
-    """.format(url=upload_url ,Publisher=publisher)
+    """.format(PUBLISHER = publisher_url, NAME = params['Publisher'].name)
 
+    #send data to vivo
     print('=' * 20 + "\nCreating new publisher\n" + '=' * 20)
     response = connection.run_update(q)
     return response

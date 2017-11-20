@@ -83,6 +83,6 @@ def run(connection, **params):
         """)
 
     # send data to vivo
-    print('=' * 20 + "\nAdding article with pre-existing author\n" + '=' * 20)
+    print('=' * 20 + "\nAdding article\n" + '=' * 20)
     response = connection.run_update(q.render(**params))
     return response
