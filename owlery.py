@@ -1,6 +1,6 @@
 import random
 import requests
-#import urllib
+import urllib
 
 from queries import check_n_value
 from thing import Thing
@@ -22,7 +22,7 @@ class Connection(object):
             exit('your vivo url is wrong')'''
 
     def check_n(self, n):
-        # check with database if n number exists
+        # call to vivo, see if n number exists
         '''url = self.check_url + n
         page = requests.get(url).text
         title = page[page.find('<title>') + 7 : page.find('</title>')]
@@ -31,7 +31,7 @@ class Connection(object):
 
         #create a Thing to test n number
         thing_check = Thing(self)
-        thing_check.n_number = n
+        thing_check.n_num = n
         params = {'Thing': thing_check}
         #use query to check if n number exists
         response = check_n_value.run(self, **params)
@@ -53,9 +53,9 @@ class Connection(object):
             'password': self.password,
             'update': template
         }
-        url = self.update_endpoint
-        response = requests.post(url, params=payload)
-        return response
+        data = urllib.urlencode(payload)
+        response = urllib.urlopen(self.update_endpoint, data)
+        return response.code
 
     def run_query(self, template):
         print("Query:\n" + template)
@@ -67,4 +67,13 @@ class Connection(object):
         url = self.query_endpoint
         headers = {'Accept': 'application/sparql-results+json'}
         response = requests.get(url, params=payload, headers=headers)
+        
+        #test = journal_dump['results']['bindings'][0]['label']['value']
+        #print(test)
+        #j = json.load(r)
+        #print(j)
+        
+        #response = os.system("curl -i -d 'email={}' -d 'password={}' -d 'query={}' -H 'Accept: application/sparql-results+json' '{}' >> practice".format(self.user, self.password, template, self.query_endpoint))
+        #with open('practice', 'w') as file:
+         #   json.dump(response, file)
         return response

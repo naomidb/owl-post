@@ -6,7 +6,7 @@ def get_params(connection):
     return params
 
 def run(connection, **params):
-    q = """ SELECT ?label ?article WHERE {{<{url}{Author_n}> <http://vivoweb.org/ontology/core#relatedBy> ?relation . ?relation <http://vivoweb.org/ontology/core#relates> ?article . ?article <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://purl.org/ontology/bibo/AcademicArticle> . ?article <http://www.w3.org/2000/01/rdf-schema#label> ?label . }} """.format(url = connection.vivo_url, Author_n = params['Author'].n_number)
+    q = """ SELECT ?label ?article WHERE {{<{url}{Author_n}> <http://vivoweb.org/ontology/core#relatedBy> ?relation . ?relation <http://vivoweb.org/ontology/core#relates> ?article . ?article <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://purl.org/ontology/bibo/AcademicArticle> . ?article <http://www.w3.org/2000/01/rdf-schema#label> ?label . }} """.format(url = params['Upload_url'], Author_n = params['Author'].n_num)
 
     print('=' * 20 + '\nGenerating Article List\n' + '=' * 20)
     response = connection.run_query(q)

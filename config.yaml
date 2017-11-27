@@ -1,5 +1,5 @@
 email: 'vivo_root@school.edu'
-password: 'vivo123'
+password: 'FreeLunch'
 
 update_endpoint: 'http://localhost:8080/vivo/api/sparqlUpdate'
 query_endpoint: 'http://localhost:8080/vivo/api/sparqlQuery'

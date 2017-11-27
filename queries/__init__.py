@@ -1,10 +1,9 @@
-from queries import check_n_value
-from queries import get_all_with_x_as_obj
-from queries import get_all_with_x_as_subj
-from queries import get_articles_for_author
-from queries import get_journal_list
-from queries import get_label
-from queries import get_person_list
-from queries import make_academic_article
-from queries import make_journal
-from queries import make_grant
+import check_n_value
+import get_all_with_x_as_obj
+import get_all_with_x_as_subj
+import get_articles_for_author
+import get_journal_list
+import get_label
+import get_person_list
+import make_journal
+import make_academic_article
