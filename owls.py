@@ -5,7 +5,6 @@ import yaml
 
 from owlery import Connection
 import queries
-import workflows
 
 def get_config(config_path):
     try:
@@ -16,26 +15,10 @@ def get_config(config_path):
         exit()
     return config
 
-def use_workflow(connection):
-    workflow = get_template_type("workflows")
-
-    head, sep, tail = workflow.partition('.')
-    workflow_choice = head
-    print(workflow_choice)
-
-    workflow_mod = getattr(workflows, workflow_choice)
-    params = workflow_mod.get_params(connection)
-
-    for key, val in params.items():
-        fill_details(key, val, workflow_choice, connection)
-
-    response = workflow_mod.run(connection, **params)
-    print(response)
-
-def use_query(connection):
+def prepare_query(connection):
     template_type = get_template_type('queries')
 
-    head, sep, tail = template_type.partition('.')
+    head, sep, tail = str(template_type).partition('.')
     template_choice = head
     print(template_choice)
 
@@ -43,6 +26,7 @@ def use_query(connection):
     params = template_mod.get_params(connection)
 
     for key, val in params.items():
+        print (str(key) + " " + str(val) + " " + str(template_choice) + " ")
         fill_details(key, val, template_choice, connection)
 
     response = template_mod.run(connection, **params)
@@ -65,19 +49,18 @@ def get_template_type(folder):
         print(str(key) + ': ' + val + '\n')
 
     index = input("Enter your desired number: ")
-    return template_options.get(index)
+    return template_options.get(int(index))
 
 def fill_details(key, item, task, connection):
     """
     Given an item, calls get_details and iterates through the list, prompting the user for the literal values.
     """
-
     print('*' * 20 + '\n' * 2 + "Working on " + key + '\n' * 2 + '*' * 20)
     sub_task = "make_" + item.type
 
     print("Fill in the values for the following (if you do not have a value, leave blank):")
     #Check if user knows n number
-    obj_n = raw_input("N number: ")
+    obj_n = input("N number: ")
     if obj_n:
         item.n_number = obj_n
         #TODO: add label check
@@ -85,9 +68,25 @@ def fill_details(key, item, task, connection):
         #For non-Thing objects, ask for further detail
         if key != 'Thing':
             #Ask for label
-            obj_name = raw_input(key + " name/title: ")
+            if key == 'Author':
+                first_name = input("First name: ")
+                if first_name:
+                    item.first = first_name
+
+                middle_name = input("Middle name: ")
+                if middle_name:
+                    item.middle = middle_name
+
+                last_name = input("Last name: ")
+                if last_name:
+                    item.last = last_name
+                obj_name = last_name + ", " + first_name + " " + middle_name
+
+            else:
+                obj_name = input(key + " name/title: ")
+
             if obj_name:
-                item.name = obj_name
+                item.name = scrub(obj_name)
                 #Check if label already exists
                 deets = {}
                 search_query = "get_" + item.type + "_list"
@@ -100,9 +99,13 @@ def fill_details(key, item, task, connection):
                     match = 'none'
 
                 if match == 'none':
+                    #temporary fix for other types of publciations
+                    if task == 'make_letter':
+                        task = 'make_academic_article'
+
                     if sub_task != task:
                         #If this entity is not the original query, make entity
-                        create_obj = raw_input("This " + item.type + " is not in the database. Would you like to add it? (y/n) ")
+                        create_obj = input("This " + item.type + " is not in the database. Would you like to add it? (y/n) ")
                         if create_obj == 'y' or create_obj == 'Y':
                             try:
                                 update_path = getattr(queries, sub_task)
@@ -113,9 +116,10 @@ def fill_details(key, item, task, connection):
                                 print("Owl Post can not create a(n) " + item.type + " at this time. Please go to your vivo site and make it manually.")
                     else:
                         #Get additional details
+                        print ("here")
                         details = item.get_details()
                         for feature in details:
-                            item_info = raw_input(str(feature) + ": ")
+                            item_info = input(str(feature) + ": ")
                             setattr(item, feature, item_info)
                 else:
                     item.n_number = match
@@ -148,6 +152,10 @@ def match_input(label, existing_options):
 
     return match
 
+def scrub(label):
+    clean_label = label.replace('"', '\\"')
+    return clean_label
+
 def main(argv1):
     config_path = argv1
     config = get_config(config_path)
@@ -161,14 +169,7 @@ def main(argv1):
 
     connection = Connection(vivo_url, check_url, email, password, update_endpoint, query_endpoint)
 
-    task = raw_input("Are you running a (1) workflow or (2) single query? ")
-    if task == '1' or task == "workflow":
-        use_workflow(connection)
-    elif task == '2' or task == "single query":
-        use_query(connection)
-    else:
-        print("Invalid entry")
-        exit()
+    prepare_query(connection)
 
 if __name__ == '__main__':
     main(sys.argv[1])
