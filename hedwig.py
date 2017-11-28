@@ -6,7 +6,8 @@ import yaml
 from auth_match import Auth_Match
 from owlery import Connection
 import queries
-from spiderowl impoty WOSnnection
+import wos
+from spiderowl import WOSnnection
 
 ARTICLE_COUNT = 0
 JOURNAL_COUNT = 0
@@ -64,8 +65,6 @@ def process(connection, data):
         journal.n_number = journal_n
     except KeyError as e:
         journal.n_number = None
- 
-    author_str = data['author']
 
     title = data['title']
     article_n = match_input(connection, title, 'academic_article')
@@ -88,7 +87,7 @@ def process(connection, data):
                     article_n = None
                     article.n_number = None
 
-        add_authors(connection, article, author_str)
+        add_authors(connection, article, data)
         return
 
     if not article_n:
@@ -135,7 +134,7 @@ def process(connection, data):
         if response:
             ARTICLE_COUNT += 1     
         
-    add_authors(connection, article, author_str)
+    add_authors(connection, article, data)
 
 def match_input(connection, label, obj_type):
     #TODO: special match function for doi
@@ -210,12 +209,13 @@ def create_journal(connection, journal_name, publisher_name):
     else:
         return None
 
-def add_authors(connection, article, author_str):
+def add_authors(connection, article, data):
     global AUTHOR_COUNT
+    author_str = data['author']
     authors = author_str.split(" and ")
     for person in authors:
         args = queries.add_author_to_pub.get_params(connection)
-        author_n = match_authors(connection, person)
+        author_n = match_authors(connection, person, data)
         args['Author'].n_number = author_n
         args['Article'].n_number = article.n_number
         args['Author'].name = person
@@ -230,18 +230,23 @@ def add_authors(connection, article, author_str):
             if response:
                 AUTHOR_COUNT += 1 
 
-def match_authors(connection, label):
+def match_authors(connection, label, data):
     deets = queries.find_n_for_label.get_params(connection)
     deets['Thing'].name = label
     deets['Thing'].category = 'person'
 
     current_list = queries.find_n_for_label.run(connection, **deets)
+    print(current_list)
     choices = {}
     #perfect match
     for key, val in current_list.items():
+        #Manually added names may end with a blank space
+        if val.endswith(" "):
+            val = val[:-1]
         if label.lower() == val.lower():
             choices[key] = val
-
+            
+    print(len(choices))
     if len(choices) == 1:
         for key in choices:
             return key
@@ -258,24 +263,31 @@ def match_authors(connection, label):
 
     #check against wos
     if len(choices) > 1:
+        try:
+            category_str = data['web-of-science-categories']
+            category_str = category_str.replace("\&", "")
+            categories = category_str.split(", ")
+        except KeyError as e:
+            categories = None
+
         matches = []
         index = 0
-        for choice in choices:
+        for choice_n, choice_name in choices.items():
             scoop = queries.get_articles_for_author.get_params(connection)
-            scoop['Author'].n_number = choice
+            scoop['Author'].n_number = choice_n
             pub_list = queries.get_articles_for_author.run(connection, **scoop)
 
-            matches[index] = new Auth_Match
-            matches[index].n_number = choice
-            matches[index].name = choices.get(choice)
+            matches.append(Auth_Match())
+            matches[index].n_number = choice_n
+            matches[index].name = choice_name
             matches[index].pubs = pub_list
 
             index += 1
 
         #TODO: write the get_pubs query
         wos_config = get_config('wos/wos_config.yaml')
-
-        wos_pubs = wos.get_pubs.run()
+        wosnnection = WOSnnection(wos_config)
+        wos_pubs = wos.get_pubs.run(wosnnection, label, categories)
 
         best_match = None
         for match in matches:

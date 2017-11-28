@@ -6,7 +6,7 @@ class Auth_Match(object):
         self.points = 0
 
     def compare_pubs(self, title):
-        for address, pub in self.pubs:
+        for address, pub in self.pubs.items():
             if title.lower() == pub.lower():
                 self.points += 1
                 return True
