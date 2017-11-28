@@ -18,6 +18,6 @@ def run(connection, **params):
         a_name = listing['label']['value']
         a_url = listing['article']['value']
         a_n = a_url.rsplit('/', 1)[-1]
-        all_articles[a_name] = a_n
+        all_articles[a_n] = a_name
 
     return all_articles

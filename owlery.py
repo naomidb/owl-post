@@ -1,6 +1,5 @@
 import random
 import requests
-#import urllib
 
 from queries import check_n_value
 from thing import Thing
@@ -13,22 +12,8 @@ class Connection(object):
         self.query_endpoint = q_endpoint
         self.vivo_url = vivo_url
         self.check_url = check_url
-        '''res = requests.get(vivo_url)
-        if res.code == 200:
-            # we good
-            self.vivo_url = vivo_url + 'individual/'
-            pass
-        else:
-            exit('your vivo url is wrong')'''
 
     def check_n(self, n):
-        # check with database if n number exists
-        '''url = self.check_url + n
-        page = requests.get(url).text
-        title = page[page.find('<title>') + 7 : page.find('</title>')]
-        return title == 'Individual Not Found'
-        '''
-
         #create a Thing to test n number
         thing_check = Thing(self)
         thing_check.n_number = n
