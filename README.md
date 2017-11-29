@@ -1,5 +1,4 @@
 # owl-post
-======
 Send data back and forth from Vivo
 
 The goal of owl-post is to allow users to interact with Vivo without having to learn the ontology, SPARQL, or anything about rdf. The list of available queries can be found in the queries directory.
