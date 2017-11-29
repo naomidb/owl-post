@@ -134,5 +134,5 @@ ENV/
 the_past/
 practice
 data_in/*
-wos/*
+wos_config.yaml
 deleteme.py
