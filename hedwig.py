@@ -1,6 +1,7 @@
 from bibtexparser import loads
 import os.path
 import sys
+import time
 import yaml
 
 from auth_match import Auth_Match
@@ -220,7 +221,6 @@ def add_authors(connection, article, data):
         args['Article'].n_number = article.n_number
         args['Author'].name = person
 
-        #TODO: only add authors that are not already on the pub
         old_author = False
         if author_n:
             old_author = queries.check_author_on_pub.run(connection, **args)
@@ -246,7 +246,7 @@ def match_authors(connection, label, data):
         if label.lower() == val.lower():
             choices[key] = val
             
-    print(len(choices))
+    print(str(len(choices)) + " matches")
     if len(choices) == 1:
         for key in choices:
             return key
@@ -263,6 +263,15 @@ def match_authors(connection, label, data):
 
     #check against wos
     if len(choices) > 1:
+        #add to disambiguation file
+        #TODO: create filter for uris of authors with same name
+        author_uris = []
+        for uri, name in choices.items():
+            author_uris.append(connection.check_url + uri)
+
+        with open("data_out/disambiguation_"+ time.strftime("%Y_%m_%d") +".txt", "a+") as disamb_file:
+            disamb_file.write("{} has possible uris: \n{}\n".format(label, author_uris))
+
         try:
             category_str = data['web-of-science-categories']
             category_str = category_str.replace("\&", "")
@@ -284,7 +293,6 @@ def match_authors(connection, label, data):
 
             index += 1
 
-        #TODO: write the get_pubs query
         wos_config = get_config('wos/wos_config.yaml')
         wosnnection = WOSnnection(wos_config)
         wos_pubs = wos.get_pubs.run(wosnnection, label, categories)
@@ -299,7 +307,11 @@ def match_authors(connection, label, data):
                         best_match = match
                 else:
                     best_match = match
-        return best_match.n_number
+        if best_match:
+            print("Match found.")
+            return best_match.n_number
+        else:
+            return None
 
 def main(argv1):
     config_path = argv1
