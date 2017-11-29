@@ -10,4 +10,4 @@ Make sure to edit the example config file and rename it to `config.yaml`. If you
 owls is the command line version of manually adding or querying data to or from Vivo through the web interface. Simply run the program, and then select the query you would like by number from the list. Then follow the instructions (make sure to leave inputs blank for information you do not know). 
 
 ## hedwig.py
-hedwig takes bibtex files from `webofknowledge.com/wos` and converts them into triples with it then uploads.
+hedwig takes bibtex files from `webofknowledge.com/wos` and converts them into triples which it then uploads. Search the webofknowledge site with your desired query and save the results as a bibtex file (optionally to the data_in folder). Then update the config file with the bibtex file location.
