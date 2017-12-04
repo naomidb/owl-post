@@ -47,7 +47,7 @@ def get_template_type(folder):
     for key, val in template_options.items():
         print(str(key) + ': ' + val + '\n')
 
-    index = input("Enter your desired number: ")
+    index = input("Enter number of query: ")
     return template_options.get(index)
 
 def fill_details(key, item, task, connection):

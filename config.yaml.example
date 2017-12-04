@@ -4,7 +4,6 @@ password: 'MyPassword'
 update_endpoint: 'http://school.edu/vivo/api/sparqlUpdate'
 query_endpoint: 'http://school.edu/vivo/api/sparqlQuery'
 
-checking_url: 'http://school.edu/vivo/display/'
 upload_url: 'http://school.edu/individual/'
 
 input_file: 'data_in/your_file.bib'

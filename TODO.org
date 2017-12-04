@@ -8,6 +8,8 @@
 
 * Deal with labels that have quotation marks in them
 
+* Add keywords to new publications (from WOS categories)
+
 ---------------------------------------------------
 
 # Complete
