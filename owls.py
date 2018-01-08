@@ -3,7 +3,7 @@ import os.path
 import sys
 import yaml
 
-from owlery import Connection
+from vivo_connect import Connection
 import queries
 
 def get_config(config_path):
@@ -45,7 +45,7 @@ def get_template_type(folder):
             count += 1
 
     for key, val in template_options.items():
-        print(str(key) + ': ' + val + '\n')
+        print(str(key) + ': ' + str(val)[:-3] + '\n')
 
     index = input("Enter number of query: ")
     return template_options.get(index)
@@ -166,9 +166,8 @@ def main(argv1):
     update_endpoint = config.get('update_endpoint')
     query_endpoint = config.get('query_endpoint')
     vivo_url = config.get('upload_url')
-    check_url = config.get('checking_url')
 
-    connection = Connection(vivo_url, check_url, email, password, update_endpoint, query_endpoint)
+    connection = Connection(vivo_url, email, password, update_endpoint, query_endpoint)
 
     prepare_query(connection)
 
