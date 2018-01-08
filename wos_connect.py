@@ -9,7 +9,6 @@ class WOSnnection(object):
         self.params = {}
         self.params['databaseId'] = 'WOS'
         self.params['collection'] = 'WOS'
-        self.params['edition'] = 'SCI'
         self.params['queryLanguage'] = 'en'
         self.params['firstRecord'] = '1'
 
@@ -24,5 +23,6 @@ class WOSnnection(object):
             self.token = result
         except ValueError as e:
             #wait for throttling to end
+            print("Waiting 60 seconds for api")
             time.sleep(60)
             self.get_token()        
