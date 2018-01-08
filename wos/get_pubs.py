@@ -33,7 +33,19 @@ def run(wosnnection, author, categories):
                   <userQuery>{userQuery}</userQuery>  
                    <editions>
                     <collection>{collection}</collection>
-                    <edition>{edition}</edition>
+                    <edition>SCI</edition>
+                   </editions>
+                   <editions>
+                    <collection>{collection}</collection>
+                    <edition>SSCI</edition>
+                   </editions>
+                   <editions>
+                    <collection>{collection}</collection>
+                    <edition>AHCI</edition>
+                   </editions>
+                   <editions>
+                    <collection>{collection}</collection>
+                    <edition>ESCI</edition>
                    </editions>
                   <queryLanguage>{queryLanguage}</queryLanguage>
                 </queryParameters>
@@ -51,6 +63,7 @@ def run(wosnnection, author, categories):
 
     #Find number of records to search for
     params['count'] = response[response.index("<recordsFound>")+len("<recordsFound>"):response.index("</recordsFound>")]
+    print('Records found: ' + response[response.index("<recordsFound>")+len("<recordsFound>"):response.index("</recordsFound>")])
     data = q.format(**params)
     result = do_search(wosnnection, data, **params)
 
