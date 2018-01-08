@@ -1,4 +1,5 @@
 from bibtexparser import loads
+from collections import Counter
 import os.path
 import sys
 import time
@@ -9,11 +10,6 @@ from vivo_connect import Connection
 import queries
 import wos
 from wos_connect import WOSnnection
-
-ARTICLE_COUNT = 0
-JOURNAL_COUNT = 0
-PUBLISHER_COUNT = 0
-AUTHOR_COUNT = 0
 
 def get_config(config_path):
     try:
@@ -43,7 +39,7 @@ def bib2csv(bib_data):
     return csv_data
 
 def process(connection, data):
-    global ARTICLE_COUNT
+    summary = Counter({})
     params = queries.make_academic_article.get_params(connection)
     article = params['Article']
     journal = params['Journal']
@@ -61,7 +57,12 @@ def process(connection, data):
                 publisher_name = data['publisher']
             except KeyError as e:
                 publisher_name = None
-            journal_n = create_journal(connection, clean_jname, publisher_name)
+            j_details = create_journal(connection, clean_jname, publisher_name)
+            if j_details['Journal'].n_number:
+                journal_n = j_details['Journal'].n_number
+                summary['Journals'] = 1
+                if j_details['Publisher'].name:
+                    summary['Publishers'] = 1
 
         journal.n_number = journal_n
     except KeyError as e:
@@ -88,8 +89,9 @@ def process(connection, data):
                     article_n = None
                     article.n_number = None
 
-        add_authors(connection, article, data)
-        return
+        author_count = add_authors(connection, article, data)
+        summary['Authors'] = author_count
+        return summary
 
     if not article_n:
         article.name = title
@@ -133,17 +135,19 @@ def process(connection, data):
         response = queries.make_academic_article.run(connection, **params)
         print(response)
         if response:
-            ARTICLE_COUNT += 1     
+            summary['Articles'] = 1     
         
-    add_authors(connection, article, data)
+        author_count = add_authors(connection, article, data)
+        summary['Authors'] = author_count
+        return summary
 
 def match_input(connection, label, obj_type):
     #TODO: special match function for doi
-    deets = queries.find_n_for_label.get_params(connection)
-    deets['Thing'].name = label
-    deets['Thing'].category = obj_type
+    details = queries.find_n_for_label.get_params(connection)
+    details['Thing'].name = label
+    details['Thing'].category = obj_type
 
-    current_list = queries.find_n_for_label.run(connection, **deets)
+    current_list = queries.find_n_for_label.run(connection, **details)
     choices = {}
     for key, val in current_list.items():
         if label.lower() == val.lower():
@@ -189,29 +193,25 @@ def check_filter(label, category):
     return label
 
 def create_journal(connection, journal_name, publisher_name):
-    global PUBLISHER_COUNT
-    global JOURNAL_COUNT
     clean_pname = check_filter(publisher_name.title(), 'publisher')
     publisher_n = match_input(connection, clean_pname, 'publisher')
 
-    reqs = queries.make_journal.get_params(connection)
-    reqs['Journal'].name = journal_name
+    j_details = queries.make_journal.get_params(connection)
+    j_details['Journal'].name = journal_name
     if publisher_n:
-        reqs['Publisher'].n_number = publisher_n
+        j_details['Publisher'].n_number = publisher_n
     else:
-        reqs['Publisher'].name = clean_pname
-        PUBLISHER_COUNT += 1
+        j_details['Publisher'].name = clean_pname
 
-    response = queries.make_journal.run(connection, **reqs)
+    response = queries.make_journal.run(connection, **j_details)
     print(response)
     if response:
-        JOURNAL_COUNT += 1
-        return reqs['Journal'].n_number
+        return j_details
     else:
         return None
 
 def add_authors(connection, article, data):
-    global AUTHOR_COUNT
+    author_count = 0
     author_str = data['author']
     authors = author_str.split(" and ")
     for person in authors:
@@ -222,6 +222,7 @@ def add_authors(connection, article, data):
         args['Author'].name = person
 
         old_author = False
+        exists = False
         if author_n:
             exists = True
             old_author = queries.check_author_on_pub.run(connection, **args)
@@ -229,7 +230,8 @@ def add_authors(connection, article, data):
             response = queries.add_author_to_pub.run(connection, **args)
             print(response)
             if response and not exists:
-                AUTHOR_COUNT += 1 
+                author_count += 1
+    return author_count 
 
 def match_authors(connection, label, data):
     deets = queries.find_n_for_label.get_params(connection)
@@ -335,11 +337,14 @@ def main(argv1):
     bib_data = loads(bib_str)
     csv_data = bib2csv(bib_data)
 
+    full_summary = Counter({'Articles': 0, 'Authors': 0, 'Journals': 0, 'Publishers': 0})
     for entry in csv_data.items():
         number, data = entry
-        process(connection, data)
+        summary = process(connection, data)
+        full_summary = full_summary + summary
 
-    print("Summary of new items:  >Articles: ", ARTICLE_COUNT, "  >Journals: ", JOURNAL_COUNT, "  >Publishers: ", PUBLISHER_COUNT, "  >People: ", AUTHOR_COUNT)
+    print("====== Summary of new items:")
+    print(full_summary)
 
 if __name__ == '__main__':
     main(sys.argv[1])
