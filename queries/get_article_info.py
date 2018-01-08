@@ -23,19 +23,25 @@ def run(connection, **params):
     response = connection.run_query(q)
     print(response)
     finding = response.json()
-    print(finding)
 
-    title = finding['results']['bindings'][0]['title']['value']
-    volume = finding['results']['bindings'][0]['volume']['value']
-    issue = finding['results']['bindings'][0]['issue']['value']
-    start = finding['results']['bindings'][0]['start']['value']
-    finish = finding['results']['bindings'][0]['finish']['value']
-    year = finding['results']['bindings'][0]['year']['value']
-    doi = finding['results']['bindings'][0]['doi']['value']
-    pmid = finding['results']['bindings'][0]['pmid']['value']
-    journal_id = finding['results']['bindings'][0]['journal']['value']
-    journal_name = finding['results']['bindings'][0]['journal_name']['value']
+    title = parse_json(finding, 'title')
+    volume = parse_json(finding, 'volume')
+    issue = parse_json(finding, 'issue')
+    start = parse_json(finding, 'start')
+    finish = parse_json(finding, 'finish')
+    year = parse_json(finding, 'year')
+    doi = parse_json(finding, 'doi')
+    pmid = parse_json(finding, 'pmid')
+    journal_id = parse_json(finding, 'journal')
+    journal_name = parse_json(finding, 'journal_name')
 
     info = {'title': title, 'volume': volume, 'issue': issue, 'start page': start, 'end page': finish, 'year': year, 'doi': doi, 'pmid': pmid, 'journal': journal_name, 'journal_n': journal_id}
     return info
 
+def parse_json(finding, search):
+    try:
+        value = finding['results']['bindings'][0][search]['value']
+    except KeyError as e:
+        value = ''
+
+    return value

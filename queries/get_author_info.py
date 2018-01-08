@@ -29,15 +29,23 @@ def run(connection, **params):
     print(finding)
 
     #TODO: should all be try/except
-    full_name = finding['results']['bindings'][0]['fullname']['value']
-    given_name = finding['results']['bindings'][0]['given']['value']
-    middle_name = finding['results']['bindings'][0]['middle']['value']
-    last_name = finding['results']['bindings'][0]['last']['value']
-    phone = finding['results']['bindings'][0]['phone']['value']
-    email = finding['results']['bindings'][0]['email']['value']
-    title = finding['results']['bindings'][0]['title']['value']
-    overview = finding['results']['bindings'][0]['overview']['value']
-    geofocus = finding['results']['bindings'][0]['geofocus']['value']
+    full_name = parse_json(finding, 'fullname')
+    given_name = parse_json(finding, 'given')
+    middle_name = parse_json(finding, 'middle')
+    last_name = parse_json(finding, 'last')
+    phone = parse_json(finding, 'phone')
+    email = parse_json(finding, 'email')
+    title = parse_json(finding, 'title')
+    overview = parse_json(finding, 'overview')
+    geofocus = parse_json(finding, 'geofocus')
 
     info = {'full name': full_name, 'given name': given_name, 'middle name': middle_name, 'last name': last_name, 'phone': phone, 'email': email, 'title': title, 'overview': overview, 'geographic focus': geofocus}
     return info
+
+def parse_json(finding, search):
+    try:
+        value = finding['results']['bindings'][0][search]['value']
+    except KeyError as e:
+        value = ''
+
+    return value
