@@ -133,6 +133,7 @@ ENV/
 the_past/
 practice
 data_in/*
+data_out/*
 config.yaml
 wos_config.yaml
 deleteme.py
