@@ -5,10 +5,10 @@ import time
 import yaml
 
 from auth_match import Auth_Match
-from owlery import Connection
+from vivo_connect import Connection
 import queries
 import wos
-from spiderowl import WOSnnection
+from wos_connect import WOSnnection
 
 ARTICLE_COUNT = 0
 JOURNAL_COUNT = 0
@@ -223,11 +223,12 @@ def add_authors(connection, article, data):
 
         old_author = False
         if author_n:
+            exists = True
             old_author = queries.check_author_on_pub.run(connection, **args)
         if not old_author:
             response = queries.add_author_to_pub.run(connection, **args)
             print(response)
-            if response:
+            if response and not exists:
                 AUTHOR_COUNT += 1 
 
 def match_authors(connection, label, data):
@@ -303,7 +304,7 @@ def match_authors(connection, label, data):
                 match.compare_pubs(title)
             if match.points > 0:
                 if best_match:
-                    if match.point > best_match.points:
+                    if match.points > best_match.points:
                         best_match = match
                 else:
                     best_match = match
@@ -322,10 +323,9 @@ def main(argv1):
     update_endpoint = config.get('update_endpoint')
     query_endpoint = config.get('query_endpoint')
     vivo_url = config.get('upload_url')
-    check_url = config.get('checking_url')
     input_file = config.get('input_file')
 
-    connection = Connection(vivo_url, check_url, email, password, update_endpoint, query_endpoint)
+    connection = Connection(vivo_url, email, password, update_endpoint, query_endpoint)
 
     bib_str = ""
     with open (input_file, 'r') as bib:
@@ -340,5 +340,6 @@ def main(argv1):
         process(connection, data)
 
     print("Summary of new items:  >Articles: ", ARTICLE_COUNT, "  >Journals: ", JOURNAL_COUNT, "  >Publishers: ", PUBLISHER_COUNT, "  >People: ", AUTHOR_COUNT)
+
 if __name__ == '__main__':
     main(sys.argv[1])
