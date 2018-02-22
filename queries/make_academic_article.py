@@ -35,19 +35,19 @@ def run(connection, **params):
             {
                 <{{upload_url}}{{ Article.n_number }}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://purl.org/ontology/bibo/AcademicArticle>  .
                 <{{upload_url}}{{ Article.n_number }}> <http://www.w3.org/2000/01/rdf-schema#label> "{{ Article.name }}" .
-              
+
               {%- if Article.volume %}
                 <{{upload_url}}{{ Article.n_number }}> <http://purl.org/ontology/bibo/volume> "{{ Article.volume }}" .
               {%- endif -%}
-              
+
               {%- if Article.issue %}
                 <{{upload_url}}{{ Article.n_number }}> <http://purl.org/ontology/bibo/issue> "{{ Article.issue }}" .
               {%- endif -%}
-              
+
               {%- if Article.start_page %}
                 <{{upload_url}}{{ Article.n_number }}> <http://purl.org/ontology/bibo/pageStart> "{{ Article.start_page }}" .
               {%- endif -%}
-              
+
               {%- if Article.end_page %}
                 <{{upload_url}}{{ Article.n_number }}> <http://purl.org/ontology/bibo/pageEnd> "{{ Article.end_page }}" .
               {%- endif -%}
@@ -66,14 +66,14 @@ def run(connection, **params):
               {%- if Article.pubmed_id %}
                 <{{upload_url}}{{Article.n_number}}> <http://purl.org/ontology/bibo/pmid> "{{ Article.pubmed_id }}" .
               {%- endif -%}
-              
+
               {%- if Author.n_number %}
                 <{{upload_url}}{{ relationship }}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://vivoweb.org/ontology/core#Authorship>  .
                 <{{upload_url}}{{ relationship }}> <http://vivoweb.org/ontology/core#relates> <{{upload_url}}{{ Article.n_number }}> .
                 <{{upload_url}}{{ relationship }}> <http://vivoweb.org/ontology/core#relates> <{{upload_url}}{{ Author.n_number }}> .
                 <{{upload_url}}{{ Article.n_number }}> <http://vivoweb.org/ontology/core#relatedBy> <{{upload_url}}{{ relationship }}> .
               {%- endif -%}
-              
+
               {%- if Journal.n_number %}
                 <{{upload_url}}{{ Article.n_number }}> <http://vivoweb.org/ontology/core#hasPublicationVenue> <{{upload_url}}{{ Journal.n_number }}> .
                 <{{upload_url}}{{ Journal.n_number }}> <http://vivoweb.org/ontology/core#publicationVenueFor> <{{upload_url}}{{ Article.n_number }}> .
@@ -87,7 +87,7 @@ def run(connection, **params):
     response = connection.run_update(q.render(**params))
     return response
 
-def write_rdf(**params):
+def write_rdf(connection, **params):
     params['Article'].create_n()
     relationship_id = connection.gen_n()
     params['relationship'] = relationship_id
@@ -151,6 +151,7 @@ def write_rdf(**params):
 <{{upload_url}}{{ Article.n_number }}> <http://vivoweb.org/ontology/core#hasPublicationVenue> <{{upload_url}}{{ Journal.n_number }}> .
 <{{upload_url}}{{ Journal.n_number }}> <http://vivoweb.org/ontology/core#publicationVenueFor> <{{upload_url}}{{ Article.n_number }}> .
 {%- endif %}
-    """)
+""")
 
     rdf = q.render(**params)
+    return rdf
