@@ -4,6 +4,8 @@ import add_publisher_to_journal
 import check_author_on_pub
 import check_n_value
 import delete_entity
+import find_n_for_doi
+import find_n_for_issn
 import find_n_for_label
 import get_all_triples
 import get_all_with_x_as_obj
