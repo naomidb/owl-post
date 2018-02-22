@@ -11,14 +11,21 @@ class Connection(object):
         self.update_endpoint = u_endpoint
         self.query_endpoint = q_endpoint
         self.vivo_url = vivo_url
+        self.n_list = []
 
     def check_n(self, n):
         #create a Thing to test n number
         thing_check = Thing(self)
         thing_check.n_number = n
+        thing_check.type = 'thing'
         params = {'Thing': thing_check}
         #use query to check if n number exists
         response = check_n_value.run(self, **params)
+        if not response:
+            if n in self.n_list:
+                response = True
+            else:
+                self.n_list.append(n) #n is probably being used, so add to n_list to prevent duplicate n
         return response
 
     def gen_n(self):
