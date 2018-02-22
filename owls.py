@@ -66,6 +66,7 @@ def fill_details(key, item, task, connection):
     else:
         #For non-Thing objects, ask for further detail
         if key != 'Thing':
+            obj_name=''
             #Ask for label
             if key == 'Author':
                 first_name = raw_input("First name: ")
@@ -79,7 +80,9 @@ def fill_details(key, item, task, connection):
                 last_name = raw_input("Last name: ")
                 if last_name:
                     item.last = last_name
-                obj_name = last_name + ", " + first_name + " " + middle_name
+
+                    if first_name or middle_name or last_name:
+                        obj_name = last_name + ", " + first_name + " " + middle_name
 
             else:
                 obj_name = raw_input(key + " name/title: ")
@@ -122,7 +125,7 @@ def fill_details(key, item, task, connection):
                             setattr(item, feature, item_info)
                 else:
                     item.n_number = match
-                    print("The n number for this " + item.type + "is " + item.n_number)
+                    print("The n number for this " + item.type + " is " + item.n_number)
             else:
                 #TODO: Decide what to do if no name
                 pass;
@@ -132,7 +135,6 @@ def fill_details(key, item, task, connection):
 def match_input(label, existing_options):
     choices = {}
     count = 1
-    print(existing_options)
     for key, val in existing_options.items():
         if label.lower() in val.lower():
             choices[count] = (key, val)
@@ -142,14 +144,14 @@ def match_input(label, existing_options):
     if choices:
         for key, val in choices.items():
             number, label = val
-            print(str(key) + ': ' + label + '(' + number + ')\n')
+            print(str(key) + ': ' + label + ' (' + number + ')\n')
 
         index = input("Do any of these match your input? (if none, write -1): ")
     if not index == -1:
         nnum, label = choices.get(index)
         match = nnum
     else:
-        match = 'none'
+        match = 'none' #should this be None?
 
     return match
 
