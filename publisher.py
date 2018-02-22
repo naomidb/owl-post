@@ -4,7 +4,7 @@ class Publisher(VivoDomainObject):
     def __init__(self, connection):
         self.connection = connection
         self.type = "publisher"
-        self.category = ""
+        self.category = "publisher"
         
         self.n_number = None
         self.name = None

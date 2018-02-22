@@ -5,7 +5,7 @@ class Article(VivoDomainObject):
         self.connection = connection
         self.type = "academic_article"
         self.category = "publication"
-        
+
         self.n_number = None
         self.name = None
         self.volume = None
