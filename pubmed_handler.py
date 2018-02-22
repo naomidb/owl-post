@@ -1,4 +1,3 @@
-from article import Article
 from pubmed_connect import PUBnnection
 
 class Citation(object):
