@@ -1,5 +1,4 @@
 from Bio import Entrez
-from Bio import Medline
 
 class PUBnnection(object):
     def __init__(self, email):

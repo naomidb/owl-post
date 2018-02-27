@@ -89,7 +89,7 @@ def sort_articles(connection, pub, author, store):
         obj_type = "Journal Article"
 
     article = Article(connection)
-    article.name = citation.check_key(['Article', 'ArticleTitle']).title()
+    article.name = scrub(citation.check_key(['Article', 'ArticleTitle']).title())
     article.volume = citation.check_key(['Article', 'Journal', 'JournalIssue', 'Volume'])
     article.issue =  citation.check_key(['Article', 'Journal', 'JournalIssue', 'Issue'])
     article.publication_year =  citation.check_key(['Article', 'Journal', 'JournalIssue', 'PubDate', 'Year'])
@@ -121,6 +121,10 @@ def sort_articles(connection, pub, author, store):
     else:
         return None
 
+def scrub(label):
+    clean_label = label.replace('"', '\\"')
+    return clean_label
+
 def get_journal(connection, citation, store):
     parts = queries.make_journal.get_params(connection)
     parts['Journal'].name = citation.check_key(['Article', 'Journal', 'Title']).title()
@@ -146,6 +150,7 @@ def get_journal(connection, citation, store):
 def match_input(connection, label, category, interact):
     details = queries.find_n_for_label.get_params(connection)
     details['Thing'].name = label
+    details['Thing'].extra = label
     details['Thing'].type = category
 
     matches = queries.find_n_for_label.run(connection, **details)
@@ -153,6 +158,7 @@ def match_input(connection, label, category, interact):
     hits = {}
     #label is passed with doi. this counts on there being no articles with the doi as their name.
     if (len(matches) == 0) and category == "academic_article":
+
         hits = queries.find_n_for_doi.run(connection, **details)
         if len(hits) == 1:
             for key in hits:

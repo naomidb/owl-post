@@ -5,9 +5,13 @@ import sys
 import time
 import yaml
 
-from auth_match import Auth_Match
-from vivo_connect import Connection
-import queries
+from vivo_queries import queries
+from vivo_queries.vdos.auth_match import Auth_Match
+from vivo_queries.vivo_connect import Connection
+
+# from auth_match import Auth_Match
+# from vivo_connect import Connection
+# import queries
 import wos
 from wos_connect import WOSnnection
 
@@ -91,7 +95,6 @@ def process(connection, data):
 
         author_count = add_authors(connection, article, data)
         summary['Authors'] = author_count
-        return summary
 
     if not article_n:
         article.name = title
@@ -135,20 +138,22 @@ def process(connection, data):
         response = queries.make_academic_article.run(connection, **params)
         print(response)
         if response:
-            summary['Articles'] = 1     
-        
+            summary['Articles'] = 1
+
         author_count = add_authors(connection, article, data)
         summary['Authors'] = author_count
-        return summary
+
+    return summary
 
 def match_input(connection, label, obj_type):
     #TODO: special match function for doi
     details = queries.find_n_for_label.get_params(connection)
     details['Thing'].name = label
-    details['Thing'].category = obj_type
+    details['Thing'].type = obj_type
 
     current_list = queries.find_n_for_label.run(connection, **details)
     choices = {}
+    #this loop totally unnecessary? it already returns this dictionary
     for key, val in current_list.items():
         if label.lower() == val.lower():
             choices[key] = val
@@ -188,7 +193,7 @@ def check_filter(label, category):
             if label == key:
                 label = val
                 break
-    
+
     #return clean_label
     return label
 
@@ -248,11 +253,10 @@ def match_authors(connection, label, data):
             val = val[:-1]
         if label.lower() == val.lower():
             choices[key] = val
-            
+
     print(str(len(choices)) + " matches")
     if len(choices) == 1:
-        for key in choices:
-            return key
+        return choices[0]
 
     #match contains label
     if len(choices) == 0:
