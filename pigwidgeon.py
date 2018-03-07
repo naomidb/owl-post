@@ -1,12 +1,12 @@
 import sys
 import yaml
 
-from article import Article
-from author import Author
-from journal import Journal
+from vivo_queries.vdos.article import Article
+from vivo_queries.vdos.author import Author
+from vivo_queries.vdos.journal import Journal
 from pubmed_handler import Citation, PHandler
-import queries
-from vivo_connect import Connection
+from vivo_queries import queries
+from vivo_queries.vivo_connect import Connection
 
 triples = ''
 

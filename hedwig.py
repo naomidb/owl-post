@@ -236,12 +236,12 @@ def add_authors(connection, article, data):
             print(response)
             if response and not exists:
                 author_count += 1
-    return author_count 
+    return author_count
 
 def match_authors(connection, label, data):
     deets = queries.find_n_for_label.get_params(connection)
-    deets['Thing'].name = label
-    deets['Thing'].category = 'person'
+    deets['Thing'].extra = label
+    deets['Thing'].type = 'person'
 
     current_list = queries.find_n_for_label.run(connection, **deets)
     print(current_list)
@@ -266,7 +266,8 @@ def match_authors(connection, label, data):
 
         if len(choices) == 1:
             for key in choices:
-                return key
+                #return key
+                return choices[0]
 
     #check against wos
     if len(choices) > 1:
