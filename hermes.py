@@ -1,19 +1,22 @@
-dostr = """
+docstr = """
 Hermes
 Usage:
-    python hermes.py (-a | -r) <config_file>
+    hermes.py (-h | --help)
+    hermes.py (-a | -r) <config_file>
 
 Options:
-    -a --api         Use VIVO api to upload data immediately
-    -r --rdf         Produce rdf files with data
-
+ -h --help        Show this message and exit
+ -a --api         Use VIVO api to upload data immediately
+ -r --rdf         Produce rdf files with data
 """
 
 from docopt import docopt
 import sys
+from time import localtime, strftime
 import yaml
 
 from vivo_queries import queries
+from vivo_queries.name_cleaner import clean_name
 from vivo_queries.vivo_connect import Connection
 
 from pubmed_handler import PHandler
@@ -23,6 +26,25 @@ _api = '--api'
 _rdf = '--rdf'
 
 #cache for authors and journals
+
+class TripleHandler(object):
+    def __init__(self, api, connection):
+        self.api = api
+        self.connection = connection
+        self.triples = []
+
+    def update(self, query, **params):
+        if self.api:
+            result = self.upload(query, **params)
+        else:
+            result = self.add_trips(query, **params)
+
+    def upload(self, query, **params):
+        result = query.run(self.connection, **params)
+
+    def add_trips(self, query, **params):
+        result = query.write_rdf(self.connection, **params)
+        self.triples.append(result)
 
 def get_config(config_path):
     try:
@@ -35,8 +57,9 @@ def get_config(config_path):
     return config
 
 def search_pubmed(handler, start_date, end_date):
-    query = 'University of Florida[Affiliation] AND "last 3 days"[EDAT]'.format(start_date, end_date)
+    query = 'University of Florida[Affiliation] AND "last 1 days"[EDAT]'
 
+    print("Searching pudmed")
     results = handler.get_data(query)
 
     return results
@@ -46,13 +69,14 @@ def make_updates(connection, pubs, pub_auth, authors, journals, pub_journ):
     vivo_journals = add_journals(connection, journals)
     vivo_articles = add_articles(connection, pubs, pub_journ, vivo_journals)
 
-def add_authors(conenction, authors):
+def add_authors(connection, authors, tripler):
     #get n_numbers for all authors included in batch. make authors that don't already exist.
     vivo_authors = {}
     for author in authors:
         if author not in vivo_authors.keys():
             author_n = match_input(connection, author, 'person', True)
             if not author_n:
+                first = middle = last = ""
                 try:
                     last, rest = author.split(", ")
                     try:
@@ -60,7 +84,7 @@ def add_authors(conenction, authors):
                     except ValueError as e:
                         first = rest
                 except ValueError as e:
-                    last = author
+                    last = author_clean
                 auth_params = queries.make_person.get_params(connection)
                 auth_params['Author'].name = author
                 auth_params['Author'].last = last
@@ -69,12 +93,13 @@ def add_authors(conenction, authors):
                 if middle:
                     auth_params['Author'].middle = middle
 
-                result = queries.make_person.run(connection, **auth_params)
+                result = tripler.update(queries.make_person, **auth_params)
+                #queries.make_person.run(connection, **auth_params)
                 author_n = auth_params['Author'].n_number
             vivo_authors[author] = author_n
     return vivo_authors
 
-def add_journals(connection, journals):
+def add_journals(connection, journals, tripler):
     #get n_numbers for all journals included in batch. make journals that don't already exist.
     vivo_journals = {}
     for issn, journal in journals.items():
@@ -87,12 +112,13 @@ def add_journals(connection, journals):
                     journal_params['Journal'].name = journal
                     journal_params['Journal'].issn = issn
 
-                    result = queries.make_journal.run(connection, **journal_params)
-                    journal_n = auth_params['Journal'].n_number
+                    result = tripler.update(queries.make_journal, **journal_params)
+                    #result = queries.make_journal.run(connection, **journal_params)
+                    journal_n = journal_params['Journal'].n_number
             vivo_journals[issn] = journal_n
     return vivo_journals
 
-def add_articles(connection, pubs, pub_journ, vivo_journals):
+def add_articles(connection, pubs, pub_journ, vivo_journals, tripler):
     #get n_numbers for all articles in batch. make pubs that don't already exist.
     vivo_pubs = {}
     for pub in pubs:
@@ -118,15 +144,17 @@ def add_articles(connection, pubs, pub_journ, vivo_journals):
                             start_page = pub[5]
                             add_valid_data(pub_params['Article'], 'start_page', start_page)
 
-                        issn = pub_journ[pmid]
+                        issn = pub_journ[pub_params['Article'].pmid]
                         journal_n = vivo_journals[issn]
                         pub_params['Journal'].n_number = journal_n
 
-                        result = queries.make_academid_article.run(connection, **pub_params)
+                        result = tripler.update(queries.make_academic_article, **pub_params)
+                        #result = queries.make_academic_article.run(connection, **pub_params)
                         pub_n = pub_params['Article'].n_number
                 vivo_pubs[pub[7]] = pub_n
+    return vivo_pubs
 
-def add_authors_to_pubs(connection, pub_auth, vivo_pubs, vivo_authors):
+def add_authors_to_pubs(connection, pub_auth, vivo_pubs, vivo_authors, tripler):
     for pub, auth_list in pub_auth.items():
         for author in auth_list:
             params = queries.add_author_to_pub.get_params(connection)
@@ -134,7 +162,8 @@ def add_authors_to_pubs(connection, pub_auth, vivo_pubs, vivo_authors):
             params['Author'].n_number = vivo_authors[author]
             old_author = queries.check_author_on_pub.run(connection, **params)
             if not old_author:
-                result = queries.add_author_to_pub.run(connection, **params)
+                result = tripler.update(queries.add_author_to_pub, **params)
+                #result = queries.add_author_to_pub.run(connection, **params)
 
 def add_valid_data(article, feature, value):
     if value:
@@ -192,16 +221,35 @@ def main(args):
     query_endpoint = config.get('query_endpoint')
     vivo_url = config.get('upload_url')
 
+    use_api = (args[_api])
+    use_rdf = (args[_rdf])
+    start_date = 0
+    end_date = 0
+
     connection = Connection(vivo_url, email, password, update_endpoint, query_endpoint)
     handler = PHandler(email)
     results = search_pubmed(handler, start_date, end_date)
     pubs, pub_auth, authors, journals, pub_journ = handler.parse_api(results)
 
-    if args[_api]:
-        make_updates(connection, pubs, pub_auth, authors, journals, pub_journ)
+    tripler = TripleHandler(use_api, connection)
+    vivo_authors = add_authors(connection, authors, tripler)
+    vivo_journals = add_journals(connection, journals, tripler)
+    vivo_articles = add_articles(connection, pubs, pub_journ, vivo_journals, tripler)
+    add_authors_to_pubs(connection, pub_auth, vivo_articles, vivo_authors, tripler)
 
-    if args[_rdf]:
-        make_rdf(connection, pubs, pub_auth, authors, journals, pub_journ)
+    if use_rdf:
+        timestamp = strftime("%Y_%m_%d_%H_%M")
+        filename = timestamp + '_upload.rdf'
+        filepath = 'data_out/' + filename
+        with open(filepath, 'w') as rdf_file:
+            for triple_set in tripler.triples:
+                rdf_file.write(triple_set + '\n')
+        print('Check ' + filepath)
+
+    # if args[_api]:
+    #     make_updates(connection, pubs, pub_auth, authors, journals, pub_journ)
+    # if args[_rdf]:
+    #     make_rdf(connection, pubs, pub_auth, authors, journals, pub_journ)
 
 if __name__ == '__main__':
     args = docopt(docstr)

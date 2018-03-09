@@ -1,4 +1,5 @@
 from pubmed_connect import PUBnnection
+from vivo_queries.name_cleaner import clean_name
 
 class Citation(object):
     def __init__(self, data):
@@ -33,7 +34,7 @@ class PHandler(object):
 
         for citing in pm_dump['PubmedArticle']:
             citation = Citation(citing['MedlineCitation'])
-            pub_title = citation.check_key(['Article', 'ArticleTitle'])
+            pub_title = clean_name(citation.check_key(['Article', 'ArticleTitle']))
             try:
                 doi = str(citation.check_key(['Article', 'ELocationID'])[0])
             except IndexError as e:
@@ -48,13 +49,13 @@ class PHandler(object):
                 doi = ""
             pmid = str(citation.check_key(['PMID']))
             issn = str(citation.check_key(['Article', 'Journal', 'ISSN']))
-            journ_name = citation.check_key(['Article', 'Journal', 'Title'])
+            journ_name = clean_name(citation.check_key(['Article', 'Journal', 'Title']))
 
             author_dump = citation.check_key(['Article', 'AuthorList'])
             for person in author_dump:
                 author = Citation(person)
-                lname = author.check_key(['LastName'])
-                fname = author.check_key(['ForeName'])
+                lname = clean_name(author.check_key(['LastName']))
+                fname = clean_name(author.check_key(['ForeName']))
                 name = lname + ', ' + fname
 
                 if name not in authors:
