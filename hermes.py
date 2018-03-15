@@ -20,31 +20,13 @@ from vivo_queries.name_cleaner import clean_name
 from vivo_queries.vivo_connect import Connection
 
 from pubmed_handler import PHandler
+from triple_handler import TripleHandler
 
 CONFIG_PATH = '<config_file>'
 _api = '--api'
 _rdf = '--rdf'
 
 #cache for authors and journals
-
-class TripleHandler(object):
-    def __init__(self, api, connection):
-        self.api = api
-        self.connection = connection
-        self.triples = []
-
-    def update(self, query, **params):
-        if self.api:
-            result = self.upload(query, **params)
-        else:
-            result = self.add_trips(query, **params)
-
-    def upload(self, query, **params):
-        result = query.run(self.connection, **params)
-
-    def add_trips(self, query, **params):
-        result = query.write_rdf(self.connection, **params)
-        self.triples.append(result)
 
 def get_config(config_path):
     try:
@@ -63,6 +45,18 @@ def search_pubmed(handler, start_date, end_date):
     results = handler.get_data(query)
 
     return results
+
+def sql_insert(db, handler, pubs, pub_auth, authors, journals, pub_journ):
+    #put database in config
+    conn = sqlite3.connect('master_list.db')
+    c = conn.cursor()
+    handler.prepare_tables(c)
+
+    handler.local_add_pubs(c, pubs, 'hermes')
+    handler.local_add_authors(c, authors)
+    handler.local_add_journals(c, journals, 'hermes')
+    handler.local_add_pub_auth(c, pub_auth)
+    handler.local_add_pub_journ(c, pub_journ)
 
 def make_updates(connection, pubs, pub_auth, authors, journals, pub_journ):
     vivo_authors = add_authors(connection, authors)
@@ -84,7 +78,7 @@ def add_authors(connection, authors, tripler):
                     except ValueError as e:
                         first = rest
                 except ValueError as e:
-                    last = author_clean
+                    last = author
                 auth_params = queries.make_person.get_params(connection)
                 auth_params['Author'].name = author
                 auth_params['Author'].last = last
@@ -97,6 +91,7 @@ def add_authors(connection, authors, tripler):
                 #queries.make_person.run(connection, **auth_params)
                 author_n = auth_params['Author'].n_number
             vivo_authors[author] = author_n
+
     return vivo_authors
 
 def add_journals(connection, journals, tripler):
@@ -116,6 +111,7 @@ def add_journals(connection, journals, tripler):
                     #result = queries.make_journal.run(connection, **journal_params)
                     journal_n = journal_params['Journal'].n_number
             vivo_journals[issn] = journal_n
+
     return vivo_journals
 
 def add_articles(connection, pubs, pub_journ, vivo_journals, tripler):
@@ -245,11 +241,6 @@ def main(args):
             for triple_set in tripler.triples:
                 rdf_file.write(triple_set + '\n')
         print('Check ' + filepath)
-
-    # if args[_api]:
-    #     make_updates(connection, pubs, pub_auth, authors, journals, pub_journ)
-    # if args[_rdf]:
-    #     make_rdf(connection, pubs, pub_auth, authors, journals, pub_journ)
 
 if __name__ == '__main__':
     args = docopt(docstr)
