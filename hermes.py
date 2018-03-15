@@ -2,15 +2,17 @@ docstr = """
 Hermes
 Usage:
     hermes.py (-h | --help)
-    hermes.py (-a | -r) <config_file>
+    hermes.py (-a | -r) [-d] <config_file>
 
 Options:
  -h --help        Show this message and exit
  -a --api         Use VIVO api to upload data immediately
  -r --rdf         Produce rdf files with data
+ -d --database     Put api results into MySQL database
 """
 
 from docopt import docopt
+import mysql.connector as mariadb
 import sys
 from time import localtime, strftime
 import yaml
@@ -25,6 +27,7 @@ from triple_handler import TripleHandler
 CONFIG_PATH = '<config_file>'
 _api = '--api'
 _rdf = '--rdf'
+_db = '--database'
 
 #cache for authors and journals
 
@@ -48,7 +51,7 @@ def search_pubmed(handler, start_date, end_date):
 
 def sql_insert(db, handler, pubs, pub_auth, authors, journals, pub_journ):
     #put database in config
-    conn = sqlite3.connect('master_list.db')
+    conn = mariadb.connect(database='master_list.db')
     c = conn.cursor()
     handler.prepare_tables(c)
 
@@ -57,6 +60,8 @@ def sql_insert(db, handler, pubs, pub_auth, authors, journals, pub_journ):
     handler.local_add_journals(c, journals, 'hermes')
     handler.local_add_pub_auth(c, pub_auth)
     handler.local_add_pub_journ(c, pub_journ)
+
+    conn.commit()
 
 def make_updates(connection, pubs, pub_auth, authors, journals, pub_journ):
     vivo_authors = add_authors(connection, authors)
@@ -217,8 +222,6 @@ def main(args):
     query_endpoint = config.get('query_endpoint')
     vivo_url = config.get('upload_url')
 
-    use_api = (args[_api])
-    use_rdf = (args[_rdf])
     start_date = 0
     end_date = 0
 
@@ -227,13 +230,17 @@ def main(args):
     results = search_pubmed(handler, start_date, end_date)
     pubs, pub_auth, authors, journals, pub_journ = handler.parse_api(results)
 
-    tripler = TripleHandler(use_api, connection)
+    if args[_db]:
+        db = config.get('database')
+        sql_insert(db, handler, pubs, pub_auth, authors, journals, pub_journ)
+
+    tripler = TripleHandler(args[_api], connection)
     vivo_authors = add_authors(connection, authors, tripler)
     vivo_journals = add_journals(connection, journals, tripler)
     vivo_articles = add_articles(connection, pubs, pub_journ, vivo_journals, tripler)
     add_authors_to_pubs(connection, pub_auth, vivo_articles, vivo_authors, tripler)
 
-    if use_rdf:
+    if args[_rdf]:
         timestamp = strftime("%Y_%m_%d_%H_%M")
         filename = timestamp + '_upload.rdf'
         filepath = 'data_out/' + filename
