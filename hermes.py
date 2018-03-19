@@ -22,7 +22,7 @@ from vivo_queries.name_cleaner import clean_name
 from vivo_queries.vivo_connect import Connection
 
 from pubmed_handler import PHandler
-from triple_handler import TripleHandler
+#from triple_handler import TripleHandler
 
 CONFIG_PATH = '<config_file>'
 _api = '--api'
@@ -30,6 +30,24 @@ _rdf = '--rdf'
 _db = '--database'
 
 #cache for authors and journals
+class TripleHandler(object):
+    def __init__(self, api, connection):
+        self.api = api
+        self.connection = connection
+        self.triples = []
+
+    def update(self, query, **params):
+        if self.api:
+            result = self.upload(query, **params)
+        else:
+            result = self.add_trips(query, **params)
+
+    def upload(self, query, **params):
+        result = query.run(self.connection, **params)
+
+    def add_trips(self, query, **params):
+        result = query.write_rdf(self.connection, **params)
+        self.triples.append(result)
 
 def get_config(config_path):
     try:
@@ -44,14 +62,14 @@ def get_config(config_path):
 def search_pubmed(handler, start_date, end_date):
     query = 'University of Florida[Affiliation] AND "last 1 days"[EDAT]'
 
-    print("Searching pudmed")
+    print("Searching pubmed")
     results = handler.get_data(query)
 
     return results
 
 def sql_insert(db, handler, pubs, pub_auth, authors, journals, pub_journ):
     #put database in config
-    conn = mariadb.connect(database='master_list.db')
+    conn = mariadb.connect(user='root', password='vivo', database='master_list')
     c = conn.cursor()
     handler.prepare_tables(c)
 
@@ -181,12 +199,12 @@ def match_input(connection, label, category, name):
         if category == 'journal':
             choices = queries.find_n_for_issn.run(connection, **details)
             if len(choices) == 1:
-                match = choices[0]
+                match = choices.keys()[0]
 
         if category == 'academic_article':
             choices = queries.find_n_for_doi.run(connection, **details)
             if len(choices) == 1:
-                match = choices[0]
+                match = choices.keys()[0]
 
     else:
         matches = queries.find_n_for_label.run(connection, **details)
@@ -198,7 +216,7 @@ def match_input(connection, label, category, name):
 
         #perfect match
         if len(choices) == 1:
-            match = choices[0]
+            match = choices.keys()[0]
 
         #inclusive perfect match
         if len(choices) == 0:
@@ -207,7 +225,7 @@ def match_input(connection, label, category, name):
                     choices[key] = val
 
             if len(choices) == 1:
-                match = choices[0]
+                match = choices.keys()[0]
 
         #TODO: add to disambiguation list when multiple matches
         #if len(choices) > 1:
