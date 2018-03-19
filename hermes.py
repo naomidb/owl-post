@@ -44,7 +44,7 @@ def get_config(config_path):
 def search_pubmed(handler, start_date, end_date):
     query = 'University of Florida[Affiliation] AND "last 1 days"[EDAT]'
 
-    print("Searching pudmed")
+    print("Searching pubmed")
     results = handler.get_data(query)
 
     return results

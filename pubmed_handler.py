@@ -46,7 +46,7 @@ class PHandler(object):
             try:
                 pub_type = str(citation.check_key(['Article', 'PublicationTypeList'])[0])
             except IndexError as e:
-                doi = ""
+                pub_type = ""
             pmid = str(citation.check_key(['PMID']))
             issn = str(citation.check_key(['Article', 'Journal', 'ISSN']))
             journ_name = clean_name(citation.check_key(['Article', 'Journal', 'Title']))
