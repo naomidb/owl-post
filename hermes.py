@@ -53,14 +53,14 @@ def get_config(config_path):
     try:
         with open(config_path, 'r') as config_file:
             config = yaml.load(config_file.read())
-    except Exception, e:
+    except Exception as e:
         print("Error: Check config file")
         print(e)
         exit()
     return config
 
 def search_pubmed(handler, start_date, end_date):
-    query = 'University of Florida[Affiliation] AND "last 1 days"[EDAT]'
+    query = 'University of Florida[Affiliation] AND "2018/03/15"[EDAT]'
 
     print("Searching pubmed")
     results = handler.get_data(query)
@@ -69,7 +69,7 @@ def search_pubmed(handler, start_date, end_date):
 
 def sql_insert(db, handler, pubs, pub_auth, authors, journals, pub_journ):
     #put database in config
-    conn = mariadb.connect(user='root', password='vivo', database='master_list')
+    conn = mariadb.connect(user='tree', password='oviv', port='3306', database='master_list')
     c = conn.cursor()
     handler.prepare_tables(c)
 
@@ -199,12 +199,12 @@ def match_input(connection, label, category, name):
         if category == 'journal':
             choices = queries.find_n_for_issn.run(connection, **details)
             if len(choices) == 1:
-                match = choices.keys()[0]
+                match = list(choices.keys())[0]
 
         if category == 'academic_article':
             choices = queries.find_n_for_doi.run(connection, **details)
             if len(choices) == 1:
-                match = choices.keys()[0]
+                match = list(choices.keys())[0]
 
     else:
         matches = queries.find_n_for_label.run(connection, **details)
@@ -216,7 +216,7 @@ def match_input(connection, label, category, name):
 
         #perfect match
         if len(choices) == 1:
-            match = choices.keys()[0]
+            match = list(choices.keys())[0]
 
         #inclusive perfect match
         if len(choices) == 0:
@@ -225,7 +225,7 @@ def match_input(connection, label, category, name):
                     choices[key] = val
 
             if len(choices) == 1:
-                match = choices.keys()[0]
+                match = list(choices.keys())[0]
 
         #TODO: add to disambiguation list when multiple matches
         #if len(choices) > 1:

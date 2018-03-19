@@ -104,9 +104,9 @@ class PHandler(object):
 
             if len(rows)==0:
                 dataset = (pub + (timestamp, timestamp, source))
-		#import pdb
-		#pdb.set_trace()
-		c.execute('INSERT INTO pubmed_pubs VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)', dataset)
+		        #import pdb
+                #pdb.set_trace()
+                c.execute('INSERT INTO pubmed_pubs VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)', dataset)
             else:
                 for row in rows:
                     if row[0:8] != pub:
