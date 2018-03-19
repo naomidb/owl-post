@@ -1,3 +1,6 @@
+import mysql.connector
+from time import localtime, strftime
+
 from pubmed_connect import PUBnnection
 from vivo_queries.name_cleaner import clean_name
 
@@ -39,10 +42,10 @@ class PHandler(object):
                 doi = str(citation.check_key(['Article', 'ELocationID'])[0])
             except IndexError as e:
                 doi = ""
-            year = citation.check_key(['Article', 'Journal', 'JournalIssue', 'PubDate', 'Year'])
-            volume = citation.check_key(['Article', 'Journal', 'JournalIssue', 'Volume'])
-            issue = citation.check_key(['Article', 'Journal', 'JournalIssue', 'Issue'])
-            pages = citation.check_key(['Article', 'Pagination', 'MedlinePgn'])
+            year = str(citation.check_key(['Article', 'Journal', 'JournalIssue', 'PubDate', 'Year']))
+            volume = str(citation.check_key(['Article', 'Journal', 'JournalIssue', 'Volume']))
+            issue = str(citation.check_key(['Article', 'Journal', 'JournalIssue', 'Issue']))
+            pages = str(citation.check_key(['Article', 'Pagination', 'MedlinePgn']))
             try:
                 pub_type = str(citation.check_key(['Article', 'PublicationTypeList'])[0])
             except IndexError as e:
@@ -77,31 +80,33 @@ class PHandler(object):
     def prepare_tables(self, c):
         print("Making tables")
         c.execute('''create table if not exists pubmed_pubs
-                        (doi text, title text, year text, volume text, issue text, pages text, type text, pmid text unique, created_dt text not null, modified_dt text not null, written_by text not null)''')
+                        (doi text, title text, year text, volume text, issue text, pages text, type text, pmid varchar(15) unique, created_dt text not null, modified_dt text not null, written_by text not null)''')
 
         c.execute('''create table if not exists pubmed_authors
-                        (author text unique)''')
+                        (author varchar(40) unique)''')
 
         c.execute('''create table if not exists pubmed_journals
-                        (issn text unique, title text, created_dt text not null, modified_dt text not null, written_by text not null)''')
+                        (issn varchar(30) unique, title text, created_dt text not null, modified_dt text not null, written_by text not null)''')
 
         c.execute('''create table if not exists pubmed_pub_auth
-                        (pmid text, auth text, unique (pmid, auth))''')
+                        (pmid varchar(15), auth varchar(40), unique (pmid, auth))''')
 
         c.execute('''create table if not exists pubmed_pub_journ
-                        (pmid text, issn text, unique (pmid, issn))''')
+                        (pmid varchar(15), issn varchar(30), unique (pmid, issn))''')
 
     def local_add_pubs(self, c, pubs, source):
         print("Adding publications")
         timestamp = strftime("%Y-%m-%d %H:%M:%S", localtime())
         for pub in pubs:
             pmid = pub[7]
-            c.execute('SELECT * FROM pubmed_pubs WHERE pmid=?', (pmid,))
+            c.execute('SELECT * FROM pubmed_pubs WHERE pmid=%s', (pmid,))
             rows = c.fetchall()
 
             if len(rows)==0:
                 dataset = (pub + (timestamp, timestamp, source))
-                c.execute('INSERT INTO pubmed_pubs VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)', dataset)
+		#import pdb
+		#pdb.set_trace()
+		c.execute('INSERT INTO pubmed_pubs VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)', dataset)
             else:
                 for row in rows:
                     if row[0:8] != pub:
@@ -125,7 +130,7 @@ class PHandler(object):
         for auth in authors:
             try:
                 c.execute('INSERT INTO pubmed_authors VALUES(%s)', (auth,))
-            except sqlite3.IntegrityError as e:
+            except mysql.connector.errors.IntegrityError as e:
                 pass
 
     def local_add_journals(self, c, journals, source):
@@ -155,7 +160,7 @@ class PHandler(object):
             for auth in auth_list:
                 try:
                     c.execute('INSERT INTO pubmed_pub_auth VALUES(%s, %s)', (pmid, auth))
-                except sqlite3.IntegrityError as e:
+                except mysql.connector.errors.IntegrityError as e:
                     pass
 
     def local_add_pub_journ(self, c, pub_journ):
@@ -163,5 +168,5 @@ class PHandler(object):
         for pmid, issn in pub_journ.items():
             try:
                 c.execute('INSERT INTO pubmed_pub_journ VALUES(%s, %s)', (pmid, issn))
-            except sqlite3.IntegrityError as e:
+            except mysql.connector.errors.IntegrityError as e:
                 pass
