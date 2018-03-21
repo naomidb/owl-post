@@ -244,13 +244,14 @@ def match_authors(connection, label, data):
     deets['Thing'].type = 'person'
 
     current_list = queries.find_n_for_label.run(connection, **deets)
-    print(current_list)
     choices = {}
+
     #perfect match
     for key, val in current_list.items():
         #Manually added names may end with a blank space
-        if val.endswith(" "):
-            val = val[:-1]
+        # if val.endswith(" "):
+        #     val = val[:-1]
+        val = val.rstrip()
         if label.lower() == val.lower():
             choices[key] = val
 
