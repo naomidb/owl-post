@@ -24,15 +24,14 @@ def find_john_does(db_path, c):
 
     return orphans
 
-def get_fuzzy_pub_matches(pub, c):
-    title = pub[1]
+# def get_fuzzy_pub_matches(pub, c):
+#     title = pub[1]
 
-    c.execute('SELECT title, wosid FROM wos_pubs')
-    wos_list = c.fetchall()
+#     c.execute('SELECT title, wosid FROM wos_pubs')
+#     wos_list = c.fetchall()
 
-    c.execute('SELECT title, pmid FROM pubmed_pubs')
-    pubmed_list = c.fetchall()
-
+#     c.execute('SELECT title, pmid FROM pubmed_pubs')
+#     pubmed_list = c.fetchall()
 
 
 def get_more_details(pub, c):
@@ -49,39 +48,65 @@ def get_more_details(pub, c):
     return (journal_info, authors)
 
 def find_matches(pub, journal_info, authors, c):
-    same_journal_pubs = match_journal(journal_info, c)
+    wos_j_pubs, pm_j_pubs = match_journal(journal_info, c)
+    wos_a_pubs, pm_a_pubs = match_author(authors, wos_j_pubs, pm_j_pubs, c)
 
 def match_journal(journal, c):
     issn = journal[0]
     j_title = journal[1]
-    #check wos for perfect matches
+    wos_journal_matches = []
+    pm_journal_matches = []
+
     if issn:
         c.execute('SELECT * FROM wos_pubs as p WHERE p.wosid=(SELECT j.wosid FROM wos_pub_journ as j WHERE j.issn=?)', (issn,))
-    else:
+        wos_journal_matches = c.fetchall()
+        c.execute('SELECT * FROM pubmed_pubs as p WHERE p.pmid=(SELECT j.pmid FROM pubmed_pub_journ as j WHERE j.issn=?)', (issn,))
+        pm_journal_matches = c.fetchall()
+
+    if not wos_journal_matches or not pm_journal_matches:
         c.execute('SELECT * FROM wos_pubs as p WHERE p.wosid in (SELECT pj.wosid FROM wos_pub_journ as pj WHERE pj.issn in (SELECT j.issn FROM wos_journals as j WHERE j.title=?))', (j_title,))
+        wos_journal_matches = c.fetchall()
+        c.execute('SELECT * FROM pubmed_pubs as p WHERE p.pmid in (SELECT pj.pmid FROM pubmed_pub_journ as pj WHERE pj.issn in (SELECT j.issn FROM pubmed_journals as j WHERE j.title=?))', (j_title,))
+        pm_journal_matches = c.fetchall()
 
-    pub_list = c.fetchall()
+    return (wos_journal_matches, pm_journal_matches)
 
-    if not pub_list:
-        #check pubmed for perfect matches
-        if issn:
-            c.execute('SELECT * FROM pubmed_pubs as p WHERE p.pmid=(SELECT j.pmid FROM pubmed_pub_journ as j WHERE j.issn=?)', (issn,))
-        else:
-            c.execute('SELECT * FROM pubmed_pubs as p WHERE p.pmid in (SELECT pj.pmid FROM pubmed_pub_journ as pj WHERE pj.issn in (SELECT j.issn FROM pubmed_journals as j WHERE j.title=?))', (j_title,))
+    #check wos for perfect matches
+    # if issn:
+    #     c.execute('SELECT * FROM wos_pubs as p WHERE p.wosid=(SELECT j.wosid FROM wos_pub_journ as j WHERE j.issn=?)', (issn,))
+    # else:
+    #     c.execute('SELECT * FROM wos_pubs as p WHERE p.wosid in (SELECT pj.wosid FROM wos_pub_journ as pj WHERE pj.issn in (SELECT j.issn FROM wos_journals as j WHERE j.title=?))', (j_title,))
 
-        pub_list = c.fetchall()
+    # pub_list = c.fetchall()
 
-    return pub_list
+    # if not pub_list:
+    #     #check pubmed for perfect matches
+    #     if issn:
+    #         c.execute('SELECT * FROM pubmed_pubs as p WHERE p.pmid=(SELECT j.pmid FROM pubmed_pub_journ as j WHERE j.issn=?)', (issn,))
+    #     else:
+    #         c.execute('SELECT * FROM pubmed_pubs as p WHERE p.pmid in (SELECT pj.pmid FROM pubmed_pub_journ as pj WHERE pj.issn in (SELECT j.issn FROM pubmed_journals as j WHERE j.title=?))', (j_title,))
 
-def match_author():
-    x
+    #     pub_list = c.fetchall()
 
-def identify_pubs(config):
-    vivonnection = Connection(config.get('upload_url'), config.get('email'), config.get('password'), config.get('update_endpoint'), config.get('query_endpoint'))
+    # return pub_list
+
+def match_author(vivo_authors, wos_matches, pm_matches, c):
+    vivo_split_names = []
+    for auth in vivo_authors:
+        try:
+            last, rest = auth.split(',')
+            vivo_split_names.append((last, rest))
+        except ValueError as e:
+            vivo_split_names.append((auth, None))
+
+    for match in wos_matches:
+
+# def identify_pubs(config):
+#     vivonnection = Connection(config.get('upload_url'), config.get('email'), config.get('password'), config.get('update_endpoint'), config.get('query_endpoint'))
 
 def main(config_path, db_path):
     config = get_config(config_path)
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path) #put db in config
     c = conn.cursor()
 
     orphans = find_john_does(db_path, c)
