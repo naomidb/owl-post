@@ -81,12 +81,7 @@ def sql_insert(db, handler, pubs, pub_auth, authors, journals, pub_journ):
 
     conn.commit()
 
-def make_updates(connection, pubs, pub_auth, authors, journals, pub_journ):
-    vivo_authors = add_authors(connection, authors)
-    vivo_journals = add_journals(connection, journals)
-    vivo_articles = add_articles(connection, pubs, pub_journ, vivo_journals)
-
-def add_authors(connection, authors, tripler):
+def add_authors(connection, authors, tripler, disamb_file):
     #get n_numbers for all authors included in batch. make authors that don't already exist.
     vivo_authors = {}
     for author in authors:
@@ -111,13 +106,12 @@ def add_authors(connection, authors, tripler):
                     auth_params['Author'].middle = middle
 
                 result = tripler.update(queries.make_person, **auth_params)
-                #queries.make_person.run(connection, **auth_params)
                 author_n = auth_params['Author'].n_number
-            vivo_authors[author] = author_n
 
+            vivo_authors[author] = author_n
     return vivo_authors
 
-def add_journals(connection, journals, tripler):
+def add_journals(connection, journals, tripler, disamb_file):
     #get n_numbers for all journals included in batch. make journals that don't already exist.
     vivo_journals = {}
     for issn, journal in journals.items():
@@ -133,11 +127,12 @@ def add_journals(connection, journals, tripler):
                     result = tripler.update(queries.make_journal, **journal_params)
                     #result = queries.make_journal.run(connection, **journal_params)
                     journal_n = journal_params['Journal'].n_number
+
             vivo_journals[issn] = journal_n
 
     return vivo_journals
 
-def add_articles(connection, pubs, pub_journ, vivo_journals, tripler):
+def add_articles(connection, pubs, pub_journ, vivo_journals, tripler, disamb_file):
     #get n_numbers for all articles in batch. make pubs that don't already exist.
     vivo_pubs = {}
     for pub in pubs:
@@ -168,8 +163,8 @@ def add_articles(connection, pubs, pub_journ, vivo_journals, tripler):
                         pub_params['Journal'].n_number = journal_n
 
                         result = tripler.update(queries.make_academic_article, **pub_params)
-                        #result = queries.make_academic_article.run(connection, **pub_params)
                         pub_n = pub_params['Article'].n_number
+
                 vivo_pubs[pub[7]] = pub_n
     return vivo_pubs
 
@@ -188,7 +183,7 @@ def add_valid_data(article, feature, value):
     if value:
         setattr(article, feature, value)
 
-def match_input(connection, label, category, name):
+def match_input(connection, label, category, name, disamb_file):
     details = queries.find_n_for_label.get_params(connection)
     details['Thing'].extra = label
     details['Thing'].type = category
@@ -227,9 +222,10 @@ def match_input(connection, label, category, name):
             if len(choices) == 1:
                 match = list(choices.keys())[0]
 
-        #TODO: add to disambiguation list when multiple matches
-        #if len(choices) > 1:
-
+        if len(choices) > 1:
+            with open(disamb_file, "a+") as dis_file:
+                #TODO: this won't contain the about-to-be-newly added uri
+                dis_file.write("{} has possible uris: \n{}\n").format(label, list(choices.keys()))
     return match
 
 def main(args):
@@ -252,10 +248,19 @@ def main(args):
         db = config.get('database')
         sql_insert(db, handler, pubs, pub_auth, authors, journals, pub_journ)
 
+    try:
+        disamb_folder = config.get('folder_for_disambiguation_files')
+        if not disamb_folder.endswith('/'):
+            disamb_folder = disamb_folder + '/'
+    except KeyError as e:
+        disamb_folder = './'
+
+    disamb_file = disamb_folder + time.strftime("%Y_%m_%d") + ".txt"
+
     tripler = TripleHandler(args[_api], connection)
-    vivo_authors = add_authors(connection, authors, tripler)
-    vivo_journals = add_journals(connection, journals, tripler)
-    vivo_articles = add_articles(connection, pubs, pub_journ, vivo_journals, tripler)
+    vivo_authors = add_authors(connection, authors, tripler, disamb_file)
+    vivo_journals = add_journals(connection, journals, tripler, disamb_file)
+    vivo_articles = add_articles(connection, pubs, pub_journ, vivo_journals, tripler, disamb_file)
     add_authors_to_pubs(connection, pub_auth, vivo_articles, vivo_authors, tripler)
 
     if args[_rdf]:
