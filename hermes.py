@@ -60,8 +60,7 @@ def get_config(config_path):
     return config
 
 def search_pubmed(handler, start_date, end_date):
-    #query = 'University of Florida[Affiliation] AND "2018/03/15"[EDAT]'
-    query = 'Campos KT[Author]'
+    query = 'University of Florida[Affiliation] AND "2018/03/15"[EDAT]'
 
     print("Searching pubmed")
     results = handler.get_data(query)
