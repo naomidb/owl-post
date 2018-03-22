@@ -60,7 +60,8 @@ def get_config(config_path):
     return config
 
 def search_pubmed(handler, start_date, end_date):
-    query = 'University of Florida[Affiliation] AND "2018/03/15"[EDAT]'
+    #query = 'University of Florida[Affiliation] AND "2018/03/15"[EDAT]'
+    query = 'Campos KT[Author]'
 
     print("Searching pubmed")
     results = handler.get_data(query)
@@ -86,7 +87,7 @@ def add_authors(connection, authors, tripler, disamb_file):
     vivo_authors = {}
     for author in authors:
         if author not in vivo_authors.keys():
-            author_n = match_input(connection, author, 'person', True)
+            author_n = match_input(connection, author, 'person', True, disamb_file)
             if not author_n:
                 first = middle = last = ""
                 try:
@@ -116,9 +117,9 @@ def add_journals(connection, journals, tripler, disamb_file):
     vivo_journals = {}
     for issn, journal in journals.items():
         if issn not in vivo_journals.keys():
-            journal_n = match_input(connection, journal, 'journal', True)
+            journal_n = match_input(connection, journal, 'journal', True, disamb_file)
             if not journal_n:
-                journal_n = match_input(connection, issn, 'journal', False)
+                journal_n = match_input(connection, issn, 'journal', False, disamb_file)
                 if not journal_n:
                     journal_params = queries.make_journal.get_params(connection)
                     journal_params['Journal'].name = journal
@@ -138,9 +139,9 @@ def add_articles(connection, pubs, pub_journ, vivo_journals, tripler, disamb_fil
     for pub in pubs:
         if pub[6] == 'Journal Article':
             if pub[1] not in vivo_pubs.values():
-                pub_n = match_input(connection, pub[1], 'academic_article', True)
+                pub_n = match_input(connection, pub[1], 'academic_article', True, disamb_file)
                 if not pub_n:
-                    pub_n = match_input(connection, pub[0], 'academic_article', False)
+                    pub_n = match_input(connection, pub[0], 'academic_article', False, disamb_file)
                     if not pub_n:
                         pub_params = queries.make_academic_article.get_params(connection)
                         pub_params['Article'].name = pub[1]
@@ -225,7 +226,8 @@ def match_input(connection, label, category, name, disamb_file):
         if len(choices) > 1:
             with open(disamb_file, "a+") as dis_file:
                 #TODO: this won't contain the about-to-be-newly added uri
-                dis_file.write("{} has possible uris: \n{}\n").format(label, list(choices.keys()))
+                print("here!")
+                dis_file.write("{} has possible uris: \n{}\n".format(label, list(choices.keys())))
     return match
 
 def main(args):
@@ -255,7 +257,8 @@ def main(args):
     except KeyError as e:
         disamb_folder = './'
 
-    disamb_file = disamb_folder + time.strftime("%Y_%m_%d") + ".txt"
+    disamb_file = disamb_folder + 'disambiguation_' + strftime("%Y_%m_%d") + ".txt"
+    print(disamb_file)
 
     tripler = TripleHandler(args[_api], connection)
     vivo_authors = add_authors(connection, authors, tripler, disamb_file)
