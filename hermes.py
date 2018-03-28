@@ -60,7 +60,7 @@ def get_config(config_path):
     return config
 
 def search_pubmed(handler, start_date, end_date):
-    query = 'University of Florida[Affiliation] AND "2018/03/15"[EDAT]'
+    query = 'University of Florida[Affiliation] AND 29536390[pmid]'
 
     print("Searching pubmed")
     results = handler.get_data(query)
@@ -135,37 +135,49 @@ def add_journals(connection, journals, tripler, disamb_file):
 def add_articles(connection, pubs, pub_journ, vivo_journals, tripler, disamb_file):
     #get n_numbers for all articles in batch. make pubs that don't already exist.
     vivo_pubs = {}
+    
     for pub in pubs:
+        pub_type = None
+        query_type = None
         if pub[6] == 'Journal Article':
-            if pub[1] not in vivo_pubs.values():
-                pub_n = match_input(connection, pub[1], 'academic_article', True, disamb_file)
+            pub_type = 'academic_article'
+            query_type = getattr(queries, 'make_academic_article')
+        elif pub[6] == 'Letter':
+            pub_type = 'letter'
+            query_type = getattr(queries, 'make_letter')
+        elif pub[6] == 'Editorial':
+            pub_type = 'editorial'
+            query_type = getattr(queries, 'make_editorial_article')
+
+        if pub[1] not in vivo_pubs.values():
+            pub_n = match_input(connection, pub[1], pub_type, True, disamb_file)
+            if not pub_n:
+                pub_n = match_input(connection, pub[0], pub_type, False, disamb_file)
                 if not pub_n:
-                    pub_n = match_input(connection, pub[0], 'academic_article', False, disamb_file)
-                    if not pub_n:
-                        pub_params = queries.make_academic_article.get_params(connection)
-                        pub_params['Article'].name = pub[1]
-                        add_valid_data(pub_params['Article'], 'volume', pub[3])
-                        add_valid_data(pub_params['Article'], 'issue', pub[4])
-                        add_valid_data(pub_params['Article'], 'publication_year', pub[2])
-                        add_valid_data(pub_params['Article'], 'doi', pub[0])
-                        add_valid_data(pub_params['Article'], 'pmid', pub[7])
+                    pub_params = queries.make_academic_article.get_params(connection)
+                    pub_params['Article'].name = pub[1]
+                    add_valid_data(pub_params['Article'], 'volume', pub[3])
+                    add_valid_data(pub_params['Article'], 'issue', pub[4])
+                    add_valid_data(pub_params['Article'], 'publication_year', pub[2])
+                    add_valid_data(pub_params['Article'], 'doi', pub[0])
+                    add_valid_data(pub_params['Article'], 'pmid', pub[7])
 
-                        try:
-                            start_page, end_page = pub[5].split("-")
-                            add_valid_data(pub_params['Article'], 'start_page', start_page)
-                            add_valid_data(pub_params['Article'], 'end_page', end_page)
-                        except ValueError as e:
-                            start_page = pub[5]
-                            add_valid_data(pub_params['Article'], 'start_page', start_page)
+                    try:
+                        start_page, end_page = pub[5].split("-")
+                        add_valid_data(pub_params['Article'], 'start_page', start_page)
+                        add_valid_data(pub_params['Article'], 'end_page', end_page)
+                    except ValueError as e:
+                        start_page = pub[5]
+                        add_valid_data(pub_params['Article'], 'start_page', start_page)
 
-                        issn = pub_journ[pub_params['Article'].pmid]
-                        journal_n = vivo_journals[issn]
-                        pub_params['Journal'].n_number = journal_n
+                    issn = pub_journ[pub_params['Article'].pmid]
+                    journal_n = vivo_journals[issn]
+                    pub_params['Journal'].n_number = journal_n
 
-                        result = tripler.update(queries.make_academic_article, **pub_params)
-                        pub_n = pub_params['Article'].n_number
+                    result = tripler.update(query_type, **pub_params)
+                    pub_n = pub_params['Article'].n_number
 
-                vivo_pubs[pub[7]] = pub_n
+            vivo_pubs[pub[7]] = pub_n
     return vivo_pubs
 
 def add_authors_to_pubs(connection, pub_auth, vivo_pubs, vivo_authors, tripler):
