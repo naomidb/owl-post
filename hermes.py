@@ -59,8 +59,8 @@ def get_config(config_path):
         exit()
     return config
 
-def search_pubmed(handler, start_date, end_date):
-    query = 'University of Florida[Affiliation] AND 29536390[pmid]'
+def search_pubmed(handler):
+    query = 'University of Florida[Affiliation] AND "last 3 days"[edat]'
 
     print("Searching pubmed")
     results = handler.get_data(query)
@@ -249,12 +249,9 @@ def main(args):
     query_endpoint = config.get('query_endpoint')
     vivo_url = config.get('upload_url')
 
-    start_date = 0
-    end_date = 0
-
     connection = Connection(vivo_url, email, password, update_endpoint, query_endpoint)
     handler = PHandler(email)
-    results = search_pubmed(handler, start_date, end_date)
+    results = search_pubmed(handler)
     pubs, pub_auth, authors, journals, pub_journ = handler.parse_api(results)
 
     if args[_db]:
