@@ -44,6 +44,7 @@ class TripleHandler(object):
 
     def upload(self, query, **params):
         result = query.run(self.connection, **params)
+        print(result)
 
     def add_trips(self, query, **params):
         result = query.write_rdf(self.connection, **params)
