@@ -20,3 +20,8 @@ hedwig takes bibtex files from `webofknowledge.com/wos` and converts them into t
 ```python pigwidgeon.py my/path/to/config/file```
 
 pigwidgeon interacts with the pubmed api and adds publications to an author it will ask you to specify via the command line. pigwidgeon produces rdf files which can be uploaded to VIVO through VIVO's online interface.
+
+## hermes.py
+```python hermes.py -r my/path/to/config/file```
+
+hermes will search pubmed for all publications based on a affliation and date (soon to be customizable) and upload them into VIVO. It parses all the journals, authors, publishers, and relationships. Then it checks and validates authors and journals for n-number in VIVO. Finally it puts it all together and uploads them into VIVO.
