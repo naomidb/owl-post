@@ -4,7 +4,7 @@ Send data back and forth from VIVO
 The goal of owl-post is to allow users to interact with VIVO without having to learn the ontology, SPARQL, or anything about rdf. The list of available queries can be found in the queries directory.
 
 ### Before You Begin
-Make sure to edit the example config file and rename it to `config.yaml`. If you do not update it, you will not be able to communicate with your VIVO. The email and password must be for a vivo account with admin rights. The input_file is only necessary for automated processes, like hedwig.
+Make sure to edit the example config file. If you do not update it, you will not be able to communicate with your VIVO. The email and password must be for a vivo account with admin rights. The input_file is only necessary for automated processes, like hedwig.
 
 ## owls.py
 ```python owls.py my/path/to/config/file```
