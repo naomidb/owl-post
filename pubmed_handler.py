@@ -23,8 +23,10 @@ class PHandler(object):
     def __init__(self, email):
         self.pubnnection = PUBnnection(email)
 
-    def get_data(self, query):
+    def get_data(self, query, log_file):
         id_list = self.pubnnection.get_id_list(query)
+        with open('log_file', 'a+') as log:
+            log.write("\n" + '=' * 10 + "Articles found: " + str(len(id_list)) + '\n')
         results = self.pubnnection.get_details(id_list)
         return results
 
@@ -59,16 +61,17 @@ class PHandler(object):
                 author = Citation(person)
                 lname = clean_name(author.check_key(['LastName']))
                 fname = clean_name(author.check_key(['ForeName']))
-                name = lname + ', ' + fname
+                if lname or fname:
+                    name = lname + ', ' + fname
 
-                if name not in authors:
-                    authors.append(name)
+                    if name not in authors:
+                        authors.append(name)
 
-                if pmid not in pub_auth.keys():
-                    pub_auth[pmid] = [name]
-                else:
-                    #pubmed does not have an id for authors
-                    pub_auth[pmid].append(name)
+                    if pmid not in pub_auth.keys():
+                        pub_auth[pmid] = [name]
+                    else:
+                        #pubmed does not have an id for authors
+                        pub_auth[pmid].append(name)
 
             pubs.append((doi, pub_title, year, volume, issue, pages, pub_type, pmid))
             if issn not in journals.keys():
