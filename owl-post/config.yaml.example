@@ -8,4 +8,4 @@ upload_url: 'http://school.edu/individual/'
 
 input_file: 'data_in/your_file.bib'
 
-folder_for_disambiguation_files: 'path/to/folder/'
+folder_for_logs: 'path/to/folder/'

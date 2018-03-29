@@ -13,6 +13,8 @@ Options:
 
 from docopt import docopt
 import mysql.connector as mariadb
+import os
+import os.path
 import sys
 from time import localtime, strftime
 import yaml
@@ -31,16 +33,20 @@ _db = '--database'
 
 #cache for authors and journals
 class TripleHandler(object):
-    def __init__(self, api, connection):
+    def __init__(self, api, connection, log_file):
         self.api = api
         self.connection = connection
+        self.log_file = log_file
         self.triples = []
 
     def update(self, query, **params):
+        stdout = sys.stdout
+        sys.stdout = open(self.log_file, 'a+')
         if self.api:
             result = self.upload(query, **params)
         else:
             result = self.add_trips(query, **params)
+        sys.stdout = stdout
 
     def upload(self, query, **params):
         result = query.run(self.connection, **params)
@@ -49,6 +55,38 @@ class TripleHandler(object):
     def add_trips(self, query, **params):
         result = query.write_rdf(self.connection, **params)
         self.triples.append(result)
+
+    def print_rdf(self, rdf_file):
+        with open(rdf_file, 'a+') as rdf:
+            for triple_set in self.triples:
+                rdf.write(triple_set + '\n')
+        with open(self.log_file, 'a+') as log:
+            log.write("=" * 15 + "rdf file saved to: " + rdf_file)
+
+class UpdateLog(object):
+    def __init__(self):
+        self.articles = []
+        self.authors = []
+        self.journals = []
+        self.publishers = []
+
+    def add_to_log(self, collection, label, uri):
+        getattr(self, collection).append((label, uri))
+
+    def create_file(self, filepath):
+        with open(filepath, 'w') as msg:
+            msg.write('New publications: \n')
+            for pub in self.articles:
+                msg.write(pub[0] + '   ---   ' + pub[1] + '\n')
+            msg.write('\n\nNew publishers: \n')
+            for publisher in self.publishers:
+                msg.write(publisher[0] + '   ---   ' + publisher[1] + '\n')
+            msg.write('\n\nNew journals: \n')
+            for journal in self.journals:
+                msg.write(journal[0] + '   ---   ' + journal[1] + '\n')
+            msg.write('\n\nNew people: \n')
+            for person in self.authors:
+                msg.write(person[0] + '   ---   ' + person[1] + '\n')
 
 def get_config(config_path):
     try:
@@ -60,11 +98,20 @@ def get_config(config_path):
         exit()
     return config
 
-def search_pubmed(handler):
-    query = 'University of Florida[Affiliation] AND "last 3 days"[edat]'
+def make_folders(log_folder, folders):
+
+    if not os.path.isdir(log_folder):
+        os.mkdir(log_folder)
+
+    for folder in folders:
+        if not os.path.isdir(folder):
+            os.mkdir(folder)
+
+def search_pubmed(handler, log_file):
+    query = 'University of Florida[Affiliation] AND "last 1 days"[edat]'
 
     print("Searching pubmed")
-    results = handler.get_data(query)
+    results = handler.get_data(query, log_file)
 
     return results
 
@@ -82,7 +129,7 @@ def sql_insert(db, handler, pubs, pub_auth, authors, journals, pub_journ):
 
     conn.commit()
 
-def add_authors(connection, authors, tripler, disamb_file):
+def add_authors(connection, authors, tripler, ulog, disamb_file):
     #get n_numbers for all authors included in batch. make authors that don't already exist.
     vivo_authors = {}
     for author in authors:
@@ -108,11 +155,12 @@ def add_authors(connection, authors, tripler, disamb_file):
 
                 result = tripler.update(queries.make_person, **auth_params)
                 author_n = auth_params['Author'].n_number
+                ulog.add_to_log('authors', author, (connection.vivo_url + author_n))
 
             vivo_authors[author] = author_n
     return vivo_authors
 
-def add_journals(connection, journals, tripler, disamb_file):
+def add_journals(connection, journals, tripler, ulog, disamb_file):
     #get n_numbers for all journals included in batch. make journals that don't already exist.
     vivo_journals = {}
     for issn, journal in journals.items():
@@ -128,15 +176,16 @@ def add_journals(connection, journals, tripler, disamb_file):
                     result = tripler.update(queries.make_journal, **journal_params)
                     #result = queries.make_journal.run(connection, **journal_params)
                     journal_n = journal_params['Journal'].n_number
+                    ulog.add_to_log('journals', journal, (connection.vivo_url + journal_n))
 
             vivo_journals[issn] = journal_n
 
     return vivo_journals
 
-def add_articles(connection, pubs, pub_journ, vivo_journals, tripler, disamb_file):
+def add_articles(connection, pubs, pub_journ, vivo_journals, tripler, ulog, disamb_file):
     #get n_numbers for all articles in batch. make pubs that don't already exist.
     vivo_pubs = {}
-    
+
     for pub in pubs:
         pub_type = None
         query_type = None
@@ -177,6 +226,7 @@ def add_articles(connection, pubs, pub_journ, vivo_journals, tripler, disamb_fil
 
                     result = tripler.update(query_type, **pub_params)
                     pub_n = pub_params['Article'].n_number
+                    ulog.add_to_log('articles', pub[1], (connection.vivo_url + pub_n))
 
             vivo_pubs[pub[7]] = pub_n
     return vivo_pubs
@@ -238,7 +288,6 @@ def match_input(connection, label, category, name, disamb_file):
         if len(choices) > 1:
             with open(disamb_file, "a+") as dis_file:
                 #TODO: this won't contain the about-to-be-newly added uri
-                print("here!")
                 dis_file.write("{} has possible uris: \n{}\n".format(label, list(choices.keys())))
     return match
 
@@ -252,37 +301,49 @@ def main(args):
 
     connection = Connection(vivo_url, email, password, update_endpoint, query_endpoint)
     handler = PHandler(email)
-    results = search_pubmed(handler)
+
+    try:
+        log_folder = config.get('folder_for_logs')
+    except KeyError as e:
+        log_folder = './'
+
+    disam = os.path.join(log_folder, 'disambiguation')
+    output = os.path.join(log_folder, 'output')
+    uploads = os.path.join(log_folder, 'uploads')
+    make_folders(log_folder, [disam, output, uploads])
+
+    timestamp = strftime("%Y_%m_%d")
+    disam_file = os.path.join(disam, ('disambiguation_' + timestamp + '.txt'))
+    output_file = os.path.join(output, ('output_file_' + timestamp + '.txt'))
+    upload_file = os.path.join(uploads, ('upload_log_' + timestamp + '.txt'))
+
+    results = search_pubmed(handler, output_file)
     pubs, pub_auth, authors, journals, pub_journ = handler.parse_api(results)
 
     if args[_db]:
         db = config.get('database')
         sql_insert(db, handler, pubs, pub_auth, authors, journals, pub_journ)
 
+    tripler = TripleHandler(args[_api], connection, output_file)
+    ulog = UpdateLog()
     try:
-        disamb_folder = config.get('folder_for_disambiguation_files')
-        if not disamb_folder.endswith('/'):
-            disamb_folder = disamb_folder + '/'
-    except KeyError as e:
-        disamb_folder = './'
+        vivo_authors = add_authors(connection, authors, tripler, ulog, disam_file)
+        vivo_journals = add_journals(connection, journals, tripler, ulog, disam_file)
+        vivo_articles = add_articles(connection, pubs, pub_journ, vivo_journals, tripler, ulog, disam_file)
+        add_authors_to_pubs(connection, pub_auth, vivo_articles, vivo_authors, tripler)
+    except Exception as e:
+        print('Error')
+        print(e)
+        with open(output_file, 'a+') as log:
+            log.write("Error\n")
+            log.write(str(e))
 
-    disamb_file = disamb_folder + 'disambiguation_' + strftime("%Y_%m_%d") + ".txt"
-    print(disamb_file)
-
-    tripler = TripleHandler(args[_api], connection)
-    vivo_authors = add_authors(connection, authors, tripler, disamb_file)
-    vivo_journals = add_journals(connection, journals, tripler, disamb_file)
-    vivo_articles = add_articles(connection, pubs, pub_journ, vivo_journals, tripler, disamb_file)
-    add_authors_to_pubs(connection, pub_auth, vivo_articles, vivo_authors, tripler)
+    ulog.create_file(upload_file)
 
     if args[_rdf]:
-        timestamp = strftime("%Y_%m_%d_%H_%M")
-        filename = timestamp + '_upload.rdf'
-        filepath = 'data_out/' + filename
-        with open(filepath, 'w') as rdf_file:
-            for triple_set in tripler.triples:
-                rdf_file.write(triple_set + '\n')
-        print('Check ' + filepath)
+        rdf_file = timestamp + '_upload.rdf'
+        rdf_filepath = os.path.join(uploads, rdf_file)
+        tripler.print_rdf(rdf_filepath)
 
 if __name__ == '__main__':
     args = docopt(docstr)
