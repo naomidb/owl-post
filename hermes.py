@@ -50,6 +50,8 @@ class TripleHandler(object):
 
     def upload(self, query, **params):
         result = query.run(self.connection, **params)
+        if result.code() != 200:
+            exit()
         print(result)
 
     def add_trips(self, query, **params):
