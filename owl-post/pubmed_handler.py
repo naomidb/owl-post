@@ -49,8 +49,6 @@ class PHandler(object):
                 doi = str(proto_doi)
             except IndexError as e:
                 doi = ""
-            import pdb
-            pdb.set_trace()
             year = str(citation.check_key(['Article', 'Journal', 'JournalIssue', 'PubDate', 'Year']))
             volume = str(citation.check_key(['Article', 'Journal', 'JournalIssue', 'Volume']))
             issue = str(citation.check_key(['Article', 'Journal', 'JournalIssue', 'Issue']))
