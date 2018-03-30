@@ -50,7 +50,7 @@ class TripleHandler(object):
 
     def upload(self, query, **params):
         result = query.run(self.connection, **params)
-        if result.status_code() != 200:
+        if result.status_code != 200:
             exit()
         print(result)
 
