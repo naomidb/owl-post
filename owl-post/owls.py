@@ -4,6 +4,7 @@ import pprint
 import sys
 import yaml
 
+from vivo_queries import catalog
 from vivo_queries.vivo_connect import Connection
 from vivo_queries import queries
 
@@ -17,10 +18,10 @@ def get_config(config_path):
     return config
 
 def prepare_query(connection):
-    template_type = get_template_type('queries')
+    template_choice = get_template_type('queries')
 
-    head, sep, tail = template_type.partition('.')
-    template_choice = head
+    # head, sep, tail = template_type.partition('.')
+    # template_choice = head
     print(template_choice)
 
     template_mod = getattr(queries, template_choice)
@@ -33,22 +34,16 @@ def prepare_query(connection):
     pprint.pprint(response)
 
 def get_template_type(folder):
-    dir = os.getcwd()
-    direc = os.path.join(dir, folder)
-
+    available_queries = catalog.list_queries()
     template_options = {}
-    count = 1
-    for file in os.listdir(direc):
-        if file.startswith('__init__') or file.endswith('.pyc'):
-            pass
-        else:
-            template_options[count] = file
-            count += 1
+
+    for c, query in enumerate(available_queries, 1):
+        template_options[c] = query
 
     for key, val in template_options.items():
-        print(str(key) + ': ' + str(val)[:-3] + '\n')
+        print(str(key) + ': ' + val + '\n')
 
-    index = input("Enter number of query: ")
+    index = int(input("Enter number of query: "))
     return template_options.get(index)
 
 def fill_details(connection, key, item, task):
@@ -63,7 +58,7 @@ def fill_details(connection, key, item, task):
 
     print("Fill in the values for the following (if you do not have a value, leave blank):")
     #Check if user knows n number
-    obj_n = raw_input("N number: ")
+    obj_n = input("N number: ")
     if obj_n:
         item.n_number = obj_n
         #TODO: add label check
@@ -73,15 +68,15 @@ def fill_details(connection, key, item, task):
             obj_name=''
             #Ask for label
             if key == 'Author':
-                first_name = raw_input("First name: ")
+                first_name = input("First name: ")
                 if first_name:
                     item.first = first_name
 
-                middle_name = raw_input("Middle name: ")
+                middle_name = input("Middle name: ")
                 if middle_name:
                     item.middle = middle_name
 
-                last_name = raw_input("Last name: ")
+                last_name = input("Last name: ")
                 if last_name:
                     item.last = last_name
 
@@ -102,7 +97,7 @@ def fill_details(connection, key, item, task):
                     obj_name = middle_name
 
             else:
-                obj_name = raw_input(key + " name/title: ")
+                obj_name = input(key + " name/title: ")
 
             if obj_name:
                 item.name = scrub(obj_name)
@@ -112,7 +107,7 @@ def fill_details(connection, key, item, task):
                 if not match:
                     if sub_task != task:
                         #If this entity is not the original query, make entity
-                        create_obj = raw_input("This " + item.type + " is not in the database. Would you like to add it? (y/n) ")
+                        create_obj = input("This " + item.type + " is not in the database. Would you like to add it? (y/n) ")
                         if create_obj == 'y' or create_obj == 'Y':
                             try:
                                 update_path = getattr(queries, sub_task)
@@ -134,7 +129,7 @@ def fill_details(connection, key, item, task):
         if key=='Thing' or obj_name:
             details = item.get_details()
             for feature in details:
-                item_info = raw_input(str(feature) + ": ")
+                item_info = input(str(feature) + ": ")
                 setattr(item, feature, item_info)
 
         # else:
