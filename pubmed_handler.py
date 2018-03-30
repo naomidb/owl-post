@@ -41,9 +41,16 @@ class PHandler(object):
             citation = Citation(citing['MedlineCitation'])
             pub_title = clean_name(citation.check_key(['Article', 'ArticleTitle']))
             try:
-                doi = str(citation.check_key(['Article', 'ELocationID'])[0])
+                count = 0
+                proto_doi = citation.check_key(['Article', 'ELocationID'])[count]
+                while proto_doi.attributes['EIdType'] != 'doi':
+                    count += 1
+                    proto_doi = citation.check_key(['Article', 'ELocationID'])[count]
+                doi = str(proto_doi)
             except IndexError as e:
                 doi = ""
+            import pdb
+            pdb.set_trace()
             year = str(citation.check_key(['Article', 'Journal', 'JournalIssue', 'PubDate', 'Year']))
             volume = str(citation.check_key(['Article', 'Journal', 'JournalIssue', 'Volume']))
             issue = str(citation.check_key(['Article', 'Journal', 'JournalIssue', 'Issue']))
