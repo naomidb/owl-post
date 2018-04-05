@@ -12,6 +12,7 @@ Options:
 """
 
 from docopt import docopt
+import json
 import mysql.connector as mariadb
 import os
 import os.path
@@ -22,6 +23,7 @@ import yaml
 from vivo_queries import queries
 from vivo_queries.name_cleaner import clean_name
 from vivo_queries.vivo_connect import Connection
+from vivo_queries.update_log import UpdateLog
 
 from pubmed_handler import PHandler
 #from triple_handler import TripleHandler
@@ -65,31 +67,6 @@ class TripleHandler(object):
         with open(self.log_file, 'a+') as log:
             log.write("=" * 15 + "rdf file saved to: " + rdf_file)
 
-class UpdateLog(object):
-    def __init__(self):
-        self.articles = []
-        self.authors = []
-        self.journals = []
-        self.publishers = []
-
-    def add_to_log(self, collection, label, uri):
-        getattr(self, collection).append((label, uri))
-
-    def create_file(self, filepath):
-        with open(filepath, 'w') as msg:
-            msg.write('New publications: \n')
-            for pub in self.articles:
-                msg.write(pub[0] + '   ---   ' + pub[1] + '\n')
-            msg.write('\n\nNew publishers: \n')
-            for publisher in self.publishers:
-                msg.write(publisher[0] + '   ---   ' + publisher[1] + '\n')
-            msg.write('\n\nNew journals: \n')
-            for journal in self.journals:
-                msg.write(journal[0] + '   ---   ' + journal[1] + '\n')
-            msg.write('\n\nNew people: \n')
-            for person in self.authors:
-                msg.write(person[0] + '   ---   ' + person[1] + '\n')
-
 def get_config(config_path):
     try:
         with open(config_path, 'r') as config_file:
@@ -101,7 +78,6 @@ def get_config(config_path):
     return config
 
 def make_folders(log_folder, folders):
-
     if not os.path.isdir(log_folder):
         os.mkdir(log_folder)
 
@@ -110,7 +86,8 @@ def make_folders(log_folder, folders):
             os.mkdir(folder)
 
 def search_pubmed(handler, log_file):
-    query = 'University of Florida[Affiliation] AND "last 1 days"[edat]'
+    #query = 'University of Florida[Affiliation] AND "last 1 days"[edat]'
+    query = '25776822[pmid]'
 
     print("Searching pubmed")
     results = handler.get_data(query, log_file)
@@ -197,9 +174,11 @@ def add_articles(connection, pubs, pub_journ, vivo_journals, tripler, ulog, disa
         elif pub[6] == 'Letter':
             pub_type = 'letter'
             query_type = getattr(queries, 'make_letter')
-        elif pub[6] == 'Editorial':
+        elif pub[6] == 'Editorial' or pub[6] == 'Comment':
             pub_type = 'editorial'
             query_type = getattr(queries, 'make_editorial_article')
+        else:
+            query_type = 'pass'
 
         if pub[1] not in vivo_pubs.values():
             pub_n = match_input(connection, pub[1], pub_type, True, disamb_file)
@@ -224,25 +203,32 @@ def add_articles(connection, pubs, pub_journ, vivo_journals, tripler, ulog, disa
 
                     issn = pub_journ[pub_params['Article'].pmid]
                     journal_n = vivo_journals[issn]
-                    pub_params['Journal'].n_number = journal_n
-
-                    result = tripler.update(query_type, **pub_params)
-                    pub_n = pub_params['Article'].n_number
-                    ulog.add_to_log('articles', pub[1], (connection.vivo_url + pub_n))
-
+                    pub_params['Journal'].n_number = journal_n 
+                    
+                    if query_type=='pass':
+                        ulog.track_skips(pub_type, **pub_params)
+                    else:
+                        result = tripler.update(query_type, **pub_params)
+                        pub_n = pub_params['Article'].n_number
+                        ulog.add_to_log('articles', pub[1], (connection.vivo_url + pub_n))
+                
             vivo_pubs[pub[7]] = pub_n
     return vivo_pubs
 
-def add_authors_to_pubs(connection, pub_auth, vivo_pubs, vivo_authors, tripler):
+def add_authors_to_pubs(connection, pub_auth, vivo_pubs, vivo_authors, tripler, ulog):
     for pub, auth_list in pub_auth.items():
         for author in auth_list:
             params = queries.add_author_to_pub.get_params(connection)
             params['Article'].n_number = vivo_pubs[pub]
             params['Author'].n_number = vivo_authors[author]
-            old_author = queries.check_author_on_pub.run(connection, **params)
-            if not old_author:
-                result = tripler.update(queries.add_author_to_pub, **params)
-                #result = queries.add_author_to_pub.run(connection, **params)
+
+            if pub in ulog.skips.keys():
+                ulog.add_author_to_skips(pub, author)
+            else:
+                old_author = queries.check_author_on_pub.run(connection, **params)
+                if not old_author:
+                    result = tripler.update(queries.add_author_to_pub, **params)
+                    #result = queries.add_author_to_pub.run(connection, **params)
 
 def add_valid_data(article, feature, value):
     if value:
@@ -318,6 +304,7 @@ def main(args):
     disam_file = os.path.join(disam, ('disambiguation_' + timestamp + '.txt'))
     output_file = os.path.join(output, ('output_file_' + timestamp + '.txt'))
     upload_file = os.path.join(uploads, ('upload_log_' + timestamp + '.txt'))
+    skips_file = os.path.join(uploads, ('skips_' + timestamp + '.txt'))
 
     results = search_pubmed(handler, output_file)
     pubs, pub_auth, authors, journals, pub_journ = handler.parse_api(results)
@@ -332,15 +319,16 @@ def main(args):
         vivo_authors = add_authors(connection, authors, tripler, ulog, disam_file)
         vivo_journals = add_journals(connection, journals, tripler, ulog, disam_file)
         vivo_articles = add_articles(connection, pubs, pub_journ, vivo_journals, tripler, ulog, disam_file)
-        add_authors_to_pubs(connection, pub_auth, vivo_articles, vivo_authors, tripler)
+        add_authors_to_pubs(connection, pub_auth, vivo_articles, vivo_authors, tripler, ulog)
     except Exception as e:
         print('Error')
-        print(e)
+        raise(e)
         with open(output_file, 'a+') as log:
             log.write("Error\n")
             log.write(str(e))
 
     ulog.create_file(upload_file)
+    ulog.write_skips(skips_file)
 
     if args[_rdf]:
         rdf_file = timestamp + '_upload.rdf'
