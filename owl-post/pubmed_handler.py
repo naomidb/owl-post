@@ -23,10 +23,11 @@ class PHandler(object):
     def __init__(self, email):
         self.pubnnection = PUBnnection(email)
 
-    def get_data(self, query, log_file):
+    def get_data(self, query, log_file=None):
         id_list = self.pubnnection.get_id_list(query)
-        with open('log_file', 'a+') as log:
-            log.write("\n" + '=' * 10 + "Articles found: " + str(len(id_list)) + '\n')
+        if log_file:
+            with open(log_file, 'a+') as log:
+                log.write("\n" + '=' * 10 + "Articles found: " + str(len(id_list)) + '\n')
         results = self.pubnnection.get_details(id_list)
         return results
 
