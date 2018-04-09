@@ -12,11 +12,9 @@ Options:
 """
 
 from docopt import docopt
-import json
 import mysql.connector as mariadb
 import os
 import os.path
-import sys
 from time import localtime, strftime
 import yaml
 
@@ -26,46 +24,14 @@ from vivo_queries.vivo_connect import Connection
 from vivo_queries.update_log import UpdateLog
 
 from pubmed_handler import PHandler
-#from triple_handler import TripleHandler
+from triple_handler import TripleHandler
 
 CONFIG_PATH = '<config_file>'
 _api = '--api'
 _rdf = '--rdf'
 _db = '--database'
 
-#cache for authors and journals
-class TripleHandler(object):
-    def __init__(self, api, connection, log_file):
-        self.api = api
-        self.connection = connection
-        self.log_file = log_file
-        self.triples = []
-
-    def update(self, query, **params):
-        stdout = sys.stdout
-        sys.stdout = open(self.log_file, 'a+')
-        if self.api:
-            result = self.upload(query, **params)
-        else:
-            result = self.add_trips(query, **params)
-        sys.stdout = stdout
-
-    def upload(self, query, **params):
-        result = query.run(self.connection, **params)
-        if result.status_code != 200:
-            exit()
-        print(result)
-
-    def add_trips(self, query, **params):
-        result = query.write_rdf(self.connection, **params)
-        self.triples.append(result)
-
-    def print_rdf(self, rdf_file):
-        with open(rdf_file, 'a+') as rdf:
-            for triple_set in self.triples:
-                rdf.write(triple_set + '\n')
-        with open(self.log_file, 'a+') as log:
-            log.write("=" * 15 + "rdf file saved to: " + rdf_file)
+#TODO:cache for authors and journals
 
 def get_config(config_path):
     try:
@@ -94,9 +60,9 @@ def search_pubmed(handler, log_file):
 
     return results
 
-def sql_insert(db, handler, pubs, pub_auth, authors, journals, pub_journ):
+def sql_insert(db, db_port, db_user, db_pw, handler, pubs, pub_auth, authors, journals, pub_journ):
     #put database in config
-    conn = mariadb.connect(user='tree', password='oviv', port='3306', database='master_list')
+    conn = mariadb.connect(user=db_user, password=db_pw, port=db_port, database=db)
     c = conn.cursor()
     handler.prepare_tables(c)
 
@@ -206,7 +172,7 @@ def add_articles(connection, pubs, pub_journ, vivo_journals, tripler, ulog, disa
                     pub_params['Journal'].n_number = journal_n 
                     
                     if query_type=='pass':
-                        ulog.track_skips(pub_type, **pub_params)
+                        ulog.track_skips(pub[6], **pub_params)
                     else:
                         result = tripler.update(query_type, **pub_params)
                         pub_n = pub_params['Article'].n_number
@@ -311,7 +277,10 @@ def main(args):
 
     if args[_db]:
         db = config.get('database')
-        sql_insert(db, handler, pubs, pub_auth, authors, journals, pub_journ)
+        db_port = config.get('database_port')
+        db_user = config.get('database_user')
+        db_pw = config.get('database_pw')
+        sql_insert(db, db_port, db_user, db_pw, handler, pubs, pub_auth, authors, journals, pub_journ)
 
     tripler = TripleHandler(args[_api], connection, output_file)
     ulog = UpdateLog()

@@ -9,3 +9,8 @@ upload_url: 'http://school.edu/individual/'
 input_file: 'data_in/your_file.bib'
 
 folder_for_logs: 'path/to/folder/'
+
+database: 'database_name'
+database_port: 'database_port'
+database_user: 'database_username'
+database_pw: 'database_password'
