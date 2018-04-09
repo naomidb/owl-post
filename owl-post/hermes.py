@@ -52,8 +52,7 @@ def make_folders(log_folder, folders):
             os.mkdir(folder)
 
 def search_pubmed(handler, log_file):
-    #query = 'University of Florida[Affiliation] AND "last 1 days"[edat]'
-    query = '25776822[pmid]'
+    query = 'University of Florida[Affiliation] AND "last 1 days"[edat]'
 
     print("Searching pubmed")
     results = handler.get_data(query, log_file)
