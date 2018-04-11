@@ -3,10 +3,13 @@ import os.path
 import pprint
 import sys
 import yaml
+import re
 
 from vivo_queries import catalog
 from vivo_queries.vivo_connect import Connection
+from vivo_queries.vdos.author import Author
 from vivo_queries import queries
+
 
 def get_config(config_path):
     try:
@@ -16,6 +19,7 @@ def get_config(config_path):
         print("Error: Check config file")
         exit()
     return config
+
 
 def prepare_query(connection):
     template_choice = get_template_type('queries')
@@ -33,6 +37,7 @@ def prepare_query(connection):
     response = template_mod.run(connection, **params)
     pprint.pprint(response)
 
+
 def get_template_type(folder):
     available_queries = catalog.list_queries()
     template_options = {}
@@ -45,6 +50,7 @@ def get_template_type(folder):
 
     index = int(input("Enter number of query: "))
     return template_options.get(index)
+
 
 def fill_details(connection, key, item, task):
     """
@@ -101,21 +107,60 @@ def fill_details(connection, key, item, task):
 
             if obj_name:
                 item.name = scrub(obj_name)
-                #Check if label already exists
-                match = match_input(connection, item.name, item.type)
+                # Check if label already exists
+                if item.type == 'contributor' and key == 'Contributor_PI':
+                    item.type = 'contributor_pi'
+                elif item.type == 'contributor' and key == 'Contributor_CoPI':
+                    item.type = 'contributor_copi'
+
+                match = match_input(connection, item.name, item.type, True)
 
                 if not match:
                     if sub_task != task:
-                        #If this entity is not the original query, make entity
+                        # If this entity is not the original query, make entity
                         create_obj = input("This " + item.type + " is not in the database. Would you like to add it? (y/n) ")
                         if create_obj == 'y' or create_obj == 'Y':
                             try:
                                 update_path = getattr(queries, sub_task)
                                 sub_params = update_path.get_params(connection)
-                                sub_params[key] = item
+                                if task == 'make_grant' and key in ['AwardingDepartment', 'SubContractedThrough', 'AdministeredBy', 'SupportedWork', 'Contributor_PI', 'Contributor_CoPI']:
+                                    details = item.get_details()
+                                    for feature in details:
+                                        item_info = input(str(feature) + ": ")
+                                        setattr(item, feature, item_info)
+
+                                    if (task == 'make_grant' and key == 'AwardingDepartment') or (task == 'make_grant' and key == 'SubContractedThrough'):
+                                        sub_params = {'Organization': item}
+                                    elif task == 'make_grant' and key == 'AdministeredBy':
+                                        sub_params = {'Organization': item}
+                                    elif task == 'make_grant' and key == 'SupportedWork':
+                                        sub_params = {'Article': item, 'Author': None, 'Journal': None}
+                                    elif task == 'make_grant' and (key == 'Contributor_PI' or key == 'Contributor_CoPI'):
+                                        author = Author(connection)
+                                        print("Author details:")
+                                        details = author.get_details()
+                                        for feature in details:
+                                            item_info = input(str(feature) + ": ")
+                                            setattr(author, feature, item_info)
+
+                                        try:
+                                            sub_update_path = getattr(queries, 'make_person')
+                                            sub_params2 = {'Author': author}
+                                            response2 = sub_update_path.run(connection, **sub_params2)
+                                        except Exception as e:
+                                            print(e)
+                                            print("Owl Post can not create a(n) " + author.type +
+                                                  " at this time. Please go to your vivo site and make it manually.")
+
+                                        sub_params = {'Contributor': item, 'Author': author}
+
+                                else:
+                                    sub_params[key] = item
+                                print(sub_task)
                                 response = update_path.run(connection, **sub_params)
                                 print(response)
                             except Exception as e:
+                                print(e)
                                 print("Owl Post can not create a(n) " + item.type + " at this time. Please go to your vivo site and make it manually.")
                             return
                 else:
@@ -123,22 +168,27 @@ def fill_details(connection, key, item, task):
                     print("The n number for this " + item.type + " is " + item.n_number)
                     return
             else:
-                #TODO: Decide what to do if no name
-                pass;
+                # TODO: Decide what to do if no name
+                pass
 
-        if key=='Thing' or obj_name:
+        if task == 'make_grant' and key in ['AwardingDepartment', 'SubContractedThrough', 'AdministeredBy', 'SupportedWork', 'Contributor_PI', 'Contributor_CoPI']:
+            pass
+        elif key == 'Thing' or obj_name:
             details = item.get_details()
             for feature in details:
                 item_info = input(str(feature) + ": ")
                 setattr(item, feature, item_info)
+        else:
+            print("Look up the n number and try again.")
 
-        # else:
-        #     print("Look up the n number and try again.")   #What's going on here?
 
-def match_input(connection, label, category):
+def match_input(connection, label, category, exact_match):
+
     details = queries.find_n_for_label.get_params(connection)
     details['Thing'].extra = label
     details['Thing'].type = category
+
+    print(category)
 
     matches = queries.find_n_for_label.run(connection, **details)
 
@@ -148,13 +198,23 @@ def match_input(connection, label, category):
         choices[count] = (key, val)
         count += 1
 
+    if exact_match:
+        if choices:
+            for key, val in choices.items():
+                number, lab = val
+                if lab.lower() == label.lower():
+                    match = number
+                    return match
+        match = None
+        return None
+
     index = -1
     if choices:
         for key, val in choices.items():
             number, label = val
             print(str(key) + ': ' + label + ' (' + number +')\n')
 
-        index = int(input("Do any of these match your input? (if none, write -1): "))
+        index = input("Do any of these match your input? (if none, write -1): ")
 
     if not index == -1:
         nnum, label = choices.get(index)
@@ -164,9 +224,11 @@ def match_input(connection, label, category):
 
     return match
 
+
 def scrub(label):
     clean_label = label.replace('"', '\\"')
     return clean_label
+
 
 def main(argv1):
     config_path = argv1
@@ -181,6 +243,7 @@ def main(argv1):
     connection = Connection(vivo_url, email, password, update_endpoint, query_endpoint)
 
     prepare_query(connection)
+
 
 if __name__ == '__main__':
     main(sys.argv[1])
