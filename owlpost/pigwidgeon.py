@@ -76,7 +76,7 @@ def identify_author(connection, tripler):
         obj_name = last_name + ", " + first_name + " " + middle_name
         author.name = obj_name
 
-        match = match_input(connection, obj_name, 'person', True)
+        match = match_input(tripler, connection, obj_name, 'person', True)
 
         if not match:
             create_obj = input("This person is not in the database. Would you like to add them? (y/n) ")
@@ -109,19 +109,28 @@ def sort_articles(connection, pub, author, tripler):
     article.volume = citation.check_key(['Article', 'Journal', 'JournalIssue', 'Volume'])
     article.issue =  citation.check_key(['Article', 'Journal', 'JournalIssue', 'Issue'])
     article.publication_year =  citation.check_key(['Article', 'Journal', 'JournalIssue', 'PubDate', 'Year'])
+    pages = str(citation.check_key(['Article', 'Pagination', 'MedlinePgn']))
+    try:
+        start_page, end_page = pages.split("-")
+        article.start_page = start_page
+        article.end_page = end_page
+    except ValueError as e:
+        start_page = pages
+        article.start_page = start_page
+
     try:
         article.doi =  str(citation.check_key(['Article', 'ELocationID'])[0])
     except IndexError as e:
         pass
-    article.pubmed_id =  citation.check_key(['PMID'])
+    article.pmid =  citation.check_key(['PMID'])
 
     journal = get_journal(connection, citation, tripler)
 
     if obj_type=='Journal Article':
         #check if article exists
-        match = match_input(connection, article.name, article.type, False)    #check with article title
-        if not match:
-            match = match_input(connection, article.doi, article.type, False) #check with article doi
+        match = match_input(tripler, connection, article.name, article.type, False)    #check with article title
+        if not match and article.doi:
+            match = match_input(tripler, connection, article.doi, article.type, False) #check with article doi
             if not match:
                 params = {'Article': article, 'Author': author, 'Journal': journal}
                 #triple = queries.make_academic_article.write_rdf(connection, **params)
@@ -133,9 +142,46 @@ def sort_articles(connection, pub, author, tripler):
             return None
 
     elif obj_type=='Editorial':
-        pass
+        article.type = 'editorial'
+        match = match_input(tripler, connection, article.name, article.type, False)    #check with article title
+        if not match and article.doi:
+            match = match_input(tripler, connection, article.doi, article.type, False) #check with article doi
+            if not match:
+                params = {'Article': article, 'Author': author, 'Journal': journal}
+                result = tripler.update(queries.make_editorial_article, **params)
+                print('*' * 6 + '\nAdding article\n' + '*' * 6)
+
+    elif obj_type=='Letter':
+        article.type='letter'
+        match = match_input(tripler, connection, article.name, article.type, False)    #check with article title
+        if not match and article.doi:
+            match = match_input(tripler, connection, article.doi, article.type, False) #check with article doi
+            if not match:
+                params = {'Article': article, 'Author': author, 'Journal': journal}
+                result = tripler.update(queries.make_letter, **params)
+                print('*' * 6 + '\nAdding article\n' + '*' * 6)
 
     else:
+        match = match_input(tripler, connection, article.name, 'thing', False)
+        with open('/Users/looseymoose/Desktop/skipped.txt', 'a+') as skips:
+            if match:
+                skips.write('PMID ' + article.pmid + ' found at ' + match + '\n\n')
+            else:
+                skips.write('pmid: ' + article.pmid + '\n')
+                try:
+                    skips.write('doi: ' + str(article.doi) + '\n')
+                    skips.write('title: ' + article.name + '\n')
+                    skips.write('volume: ' + str(article.volume) + '\n')
+                    skips.write('issue: ' + str(article.issue) + '\n')
+                    skips.write('pages: ' + citation.check_key(['Article', 'Pagination', 'MedlinePgn']) + '\n')
+                    skips.write('year: ' + str(article.publication_year) + '\n')
+                    skips.write('journal: ' + citation.check_key(['Article', 'Journal', 'Title']).title() + '\n')
+                    skips.write('issn: ' + str(citation.check_key(['Article', 'Journal', 'ISSN'])) + '\n')
+                    skips.write('type: ' + str(obj_type) + '\n')
+                except Exception as e:
+                    skips.write('Error printing details')
+                    print(e)
+                skips.write('\n\n')
         return None
 
 def scrub(label):
@@ -147,9 +193,9 @@ def get_journal(connection, citation, tripler):
     parts['Journal'].name = citation.check_key(['Article', 'Journal', 'Title']).title()
     parts['Journal'].issn = str(citation.check_key(['Article', 'Journal', 'ISSN']))
 
-    match = match_input(connection, parts['Journal'].name, 'journal', False)     #check with journal name
-    if not match:
-        match = match_input(connection, parts['Journal'].issn, 'journal', False) #check with journal issn
+    match = match_input(tripler, connection, parts['Journal'].name, 'journal', False)     #check with journal name
+    if not match and parts['Journal'].issn:
+        match = match_input(tripler, connection, parts['Journal'].issn, 'journal', False) #check with journal issn
 
     if match:
         parts['Journal'].n_number = match
@@ -165,67 +211,75 @@ def get_journal(connection, citation, tripler):
 
     return parts['Journal']
 
-def match_input(connection, label, category, interact=False):
+def match_input(tripler, connection, label, category, interact=False):
     details = queries.find_n_for_label.get_params(connection)
     details['Thing'].name = label
     details['Thing'].extra = label
     details['Thing'].type = category
 
-    matches = queries.find_n_for_label.run(connection, **details)
+    try:
+        matches = queries.find_n_for_label.run(connection, **details)
 
-    hits = {}
-    match = None
+        hits = {}
+        match = None
 
-    #no matches
-    if (len(matches) == 0):
-        #label is passed with doi. this counts on there being no articles with the doi as their name.
-        if category == "academic_article":
-            hits = queries.find_n_for_doi.run(connection, **details)
-            if len(hits) == 1:
-                for key in hits:
-                    match = key
+        #no matches
+        if (len(matches) == 0):
+            #label is passed with doi. this counts on there being no articles with the doi as their name.
+            if category == "academic_article":
+                hits = queries.find_n_for_doi.run(connection, **details)
+                if len(hits) == 1:
+                    for key in hits:
+                        match = key
 
-        #label is passed with issn. this counts on there being no journals with the issn as their name.
-        elif category == "journal":
-            hits = queries.find_n_for_issn.run(connection, **details)
-            if len(hits) == 1:
-                for key in hits:
-                    match = key
+            #label is passed with issn. this counts on there being no journals with the issn as their name.
+            elif category == "journal":
+                hits = queries.find_n_for_issn.run(connection, **details)
+                if len(hits) == 1:
+                    for key in hits:
+                        match = key
 
-        else:
-            match = None
-
-    #single match using title
-    elif len(matches) == 1:
-        for key in matches:
-            match = key
-
-    #multiple matches
-    else:
-        if interact:
-            choices = {}
-            count = 1
-            for n_id, name in hits.items():
-                if label.lower in val.lower():
-                    choices[count] = (n_id, name)
-                    count += 1
-
-            index = -1
-            for key, val in choices.items():
-                number,label = val
-                print((str(key) + ': ' + label + ' (' + number + ')\n'))
-
-            index = input("Do any of these match your input? (if none, write -1): ")
-            if not index == -1:
-                nnum, label = choices.get(index)
-                match = nnum
             else:
                 match = None
-        else:
-            match = None
-            #TODO: deal with duplicates
-    return match
 
+        #single match using title
+        elif len(matches) == 1:
+            for key in matches:
+                match = key
+
+        #multiple matches
+        else:
+            if interact:
+                choices = {}
+                count = 1
+                for n_id, name in hits.items():
+                    if label.lower in val.lower():
+                        choices[count] = (n_id, name)
+                        count += 1
+
+                index = -1
+                for key, val in choices.items():
+                    number,label = val
+                    print((str(key) + ': ' + label + ' (' + number + ')\n'))
+
+                index = input("Do any of these match your input? (if none, write -1): ")
+                if not index == -1:
+                    nnum, label = choices.get(index)
+                    match = nnum
+                else:
+                    match = None
+            else:
+                match = None
+                #TODO: deal with duplicates
+        return match
+    except Exception as e:
+        print(e)
+        timestamp = strftime("%Y_%m_%d_%H_%M")
+        filename = timestamp + '_upload.rdf'
+        filepath = '/Users/looseymoose/Desktop/' + filename
+        tripler.write_to_file(filepath)
+        print('Check ' + filepath)
+        exit()
 
 def main(args):
     config = get_config(args[CONFIG_PATH])
@@ -253,10 +307,8 @@ def main(args):
     if args[_rdf]:
         timestamp = strftime("%Y_%m_%d_%H_%M")
         filename = timestamp + '_upload.rdf'
-        filepath = 'data_out/' + filename
-        with open(filepath, 'w') as rdf_file:
-            for triple_set in tripler.triples:
-                rdf_file.write(triple_set + '\n')
+        filepath = '/Users/looseymoose/Desktop/' + filename
+        tripler.write_to_file(filepath)
         print('Check ' + filepath)
 
 if __name__ == '__main__':

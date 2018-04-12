@@ -55,6 +55,11 @@ class PHandler(object):
             issue = str(citation.check_key(['Article', 'Journal', 'JournalIssue', 'Issue']))
             pages = str(citation.check_key(['Article', 'Pagination', 'MedlinePgn']))
             try:
+                start, end = pages.split('-')
+            except ValueError as e:
+                start = pages
+                end = ''
+            try:
                 pub_type = str(citation.check_key(['Article', 'PublicationTypeList'])[0])
             except IndexError as e:
                 pub_type = ""
@@ -79,7 +84,9 @@ class PHandler(object):
                         #pubmed does not have an id for authors
                         pub_auth[pmid].append(name)
 
-            pubs.append((doi, pub_title, year, volume, issue, pages, pub_type, pmid))
+            pubs.append({'doi': doi, 'title': pub_title, 'year': year,
+                        'volume': volume, 'issue': issue, 'start': start,
+                        'end': end, 'type': pub_type, 'pmid': pmid})
             if issn not in journals.keys():
                 journals[issn] = journ_name
             pub_journ[pmid] = issn
