@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 setup(name='owlpost',
       packages=find_packages(),
       version='0.1',
-      description='To move data to and fro VIVO',
+      description='A collection of queries and tools for interacting with VIVO',
       author='Naomi Braun',
       author_email='naomi.d.braun@gmail.com',
       url='https://github.com/naomidb/owl-post',
@@ -13,4 +13,5 @@ setup(name='owlpost',
           'PyYAML==3.12',
           'Jinja2==2.10'],
       )
+
 

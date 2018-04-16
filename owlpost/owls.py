@@ -1,9 +1,6 @@
-import os
-import os.path
 import pprint
 import sys
 import yaml
-import re
 
 from vivo_queries import catalog
 from vivo_queries.vivo_connect import Connection
@@ -60,19 +57,32 @@ def fill_details(connection, key, item, task):
     try:
         sub_task = "make_" + item.type
     except TypeError as e:
-        sub_task = None   #Anything using a Thing will have a blank type
+        sub_task = None   # Anything using a Thing will have a blank type
+
+    sub_key = ''
+
+    if sub_task != task and task == 'make_grant':
+        if key in ['AwardingDepartment', 'SubContractedThrough', 'AdministeredBy']:
+            sub_task = 'make_organization'
+            sub_key = 'Organization'
+        elif key == 'SupportedWork':
+            sub_task = 'make_academic_article'
+            sub_key = 'Article'
+        elif key == 'Contributor_PI' or key == 'Contributor_CoPI':
+            sub_task = 'make_contributor'
+            sub_key = 'Contributor'
 
     print("Fill in the values for the following (if you do not have a value, leave blank):")
-    #Check if user knows n number
+    # Check if user knows n number
     obj_n = input("N number: ")
     if obj_n:
         item.n_number = obj_n
-        #TODO: add label check
+        # TODO: add label check
     else:
-        #For non-Thing objects, ask for further detail
+        # For non-Thing objects, ask for further detail
         if key != 'Thing':
             obj_name=''
-            #Ask for label
+            # Ask for label
             if key == 'Author':
                 first_name = input("First name: ")
                 if first_name:
@@ -114,49 +124,24 @@ def fill_details(connection, key, item, task):
                     item.type = 'contributor_copi'
 
                 match = match_input(connection, item.name, item.type, True)
-
                 if not match:
                     if sub_task != task:
                         # If this entity is not the original query, make entity
                         create_obj = input("This " + item.type + " is not in the database. Would you like to add it? (y/n) ")
                         if create_obj == 'y' or create_obj == 'Y':
                             try:
+                                details = item.get_details()
+                                for feature in details:
+                                    item_info = input(str(feature) + ": ")
+                                    setattr(item, feature, item_info)
+
                                 update_path = getattr(queries, sub_task)
                                 sub_params = update_path.get_params(connection)
-                                if task == 'make_grant' and key in ['AwardingDepartment', 'SubContractedThrough', 'AdministeredBy', 'SupportedWork', 'Contributor_PI', 'Contributor_CoPI']:
-                                    details = item.get_details()
-                                    for feature in details:
-                                        item_info = input(str(feature) + ": ")
-                                        setattr(item, feature, item_info)
-
-                                    if (task == 'make_grant' and key == 'AwardingDepartment') or (task == 'make_grant' and key == 'SubContractedThrough'):
-                                        sub_params = {'Organization': item}
-                                    elif task == 'make_grant' and key == 'AdministeredBy':
-                                        sub_params = {'Organization': item}
-                                    elif task == 'make_grant' and key == 'SupportedWork':
-                                        sub_params = {'Article': item, 'Author': None, 'Journal': None}
-                                    elif task == 'make_grant' and (key == 'Contributor_PI' or key == 'Contributor_CoPI'):
-                                        author = Author(connection)
-                                        print("Author details:")
-                                        details = author.get_details()
-                                        for feature in details:
-                                            item_info = input(str(feature) + ": ")
-                                            setattr(author, feature, item_info)
-
-                                        try:
-                                            sub_update_path = getattr(queries, 'make_person')
-                                            sub_params2 = {'Author': author}
-                                            response2 = sub_update_path.run(connection, **sub_params2)
-                                        except Exception as e:
-                                            print(e)
-                                            print("Owl Post can not create a(n) " + author.type +
-                                                  " at this time. Please go to your vivo site and make it manually.")
-
-                                        sub_params = {'Contributor': item, 'Author': author}
-
-                                else:
+                                if sub_key == '':
                                     sub_params[key] = item
-                                print(sub_task)
+                                else:
+                                    sub_params[sub_key] = item
+
                                 response = update_path.run(connection, **sub_params)
                                 print(response)
                             except Exception as e:
@@ -171,15 +156,11 @@ def fill_details(connection, key, item, task):
                 # TODO: Decide what to do if no name
                 pass
 
-        if task == 'make_grant' and key in ['AwardingDepartment', 'SubContractedThrough', 'AdministeredBy', 'SupportedWork', 'Contributor_PI', 'Contributor_CoPI']:
-            pass
-        elif key == 'Thing' or obj_name:
+        if key == 'Thing' or obj_name:
             details = item.get_details()
             for feature in details:
                 item_info = input(str(feature) + ": ")
                 setattr(item, feature, item_info)
-        else:
-            print("Look up the n number and try again.")
 
 
 def match_input(connection, label, category, exact_match):
