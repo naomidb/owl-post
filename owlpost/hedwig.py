@@ -38,7 +38,7 @@ def get_config(config_path):
     try:
         with open(config_path, 'r') as config_file:
             config = yaml.load(config_file.read())
-    except Exception, e:
+    except Exception as e:
         print("Error: Check config file")
         print(e)
         exit()
