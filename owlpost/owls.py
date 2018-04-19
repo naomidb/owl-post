@@ -195,7 +195,7 @@ def match_input(connection, label, category, exact_match):
             number, label = val
             print(str(key) + ': ' + label + ' (' + number +')\n')
 
-        index = input("Do any of these match your input? (if none, write -1): ")
+        index = int(input("Do any of these match your input? (if none, write -1): "))
 
     if not index == -1:
         nnum, label = choices.get(index)
