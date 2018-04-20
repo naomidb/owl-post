@@ -61,6 +61,7 @@ def fill_details(connection, key, item, task):
 
     sub_key = ''
 
+    # For Grant
     if sub_task != task and task == 'make_grant':
         if key in ['AwardingDepartment', 'SubContractedThrough', 'AdministeredBy']:
             sub_task = 'make_organization'
@@ -117,12 +118,14 @@ def fill_details(connection, key, item, task):
 
             if obj_name:
                 item.name = scrub(obj_name)
-                # Check if label already exists
+
+                # Contributor for Grants
                 if item.type == 'contributor' and key == 'Contributor_PI':
                     item.type = 'contributor_pi'
                 elif item.type == 'contributor' and key == 'Contributor_CoPI':
                     item.type = 'contributor_copi'
 
+                # Check if label already exists
                 match = match_input(connection, item.name, item.type, True)
                 if not match:
                     if sub_task != task:
