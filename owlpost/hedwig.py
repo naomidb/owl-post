@@ -38,7 +38,7 @@ def get_config(config_path):
     try:
         with open(config_path, 'r') as config_file:
             config = yaml.load(config_file.read())
-    except Exception, e:
+    except Exception as e:
         print("Error: Check config file")
         print(e)
         exit()
@@ -54,12 +54,12 @@ def make_folders(top_folder, sub_folders=None):
 
     return top_folder
 
-def add_authors(connection, authors, tripler, ulog, disam_file):
+def add_authors(connection, authors, tripler, ulog):
     #get n_numbers for all authors included in batch. make authors that don't already exist.
     vivo_authors = {}
     for author in authors:
         if author not in vivo_authors.keys():
-            author_n = match_input(connection, author, 'person', True, disamb_file)
+            author_n = match_input(connection, author, 'person', True, ulog)
             if not author_n:
                 first = middle = last = ""
                 try:
@@ -81,18 +81,19 @@ def add_authors(connection, authors, tripler, ulog, disam_file):
                 result = tripler.update(queries.make_person, **auth_params)
                 author_n = auth_params['Author'].n_number
                 ulog.add_to_log('authors', author, (connection.vivo_url + author_n))
+                ulog.add_n_to_ambiguities(author, author_n)
 
             vivo_authors[author] = author_n
     return vivo_authors
 
-def add_journals(connection, journals, tripler, ulog, disamb_file):
+def add_journals(connection, journals, tripler, ulog):
     #get n_numbers for all journals included in batch. make journals that don't already exist.
     vivo_journals = {}
     for issn, journal in journals.items():
         if issn not in vivo_journals.keys():
-            journal_n = match_input(connection, journal, 'journal', True, disamb_file)
+            journal_n = match_input(connection, journal, 'journal', True, ulog)
             if not journal_n:
-                journal_n = match_input(connection, issn, 'journal', False, disamb_file)
+                journal_n = match_input(connection, issn, 'journal', False, ulog)
                 if not journal_n:
                     journal_params = queries.make_journal.get_params(connection)
                     journal_params['Journal'].name = journal
@@ -102,12 +103,13 @@ def add_journals(connection, journals, tripler, ulog, disamb_file):
                     #result = queries.make_journal.run(connection, **journal_params)
                     journal_n = journal_params['Journal'].n_number
                     ulog.add_to_log('journals', journal, (connection.vivo_url + journal_n))
+                    ulog.add_n_to_ambiguities(journal, journal_n)
 
             vivo_journals[issn] = journal_n
 
     return vivo_journals
 
-def add_articles(connection, pubs, pub_journ, vivo_journals, tripler, ulog, disamb_file):
+def add_articles(connection, pubs, pub_journ, vivo_journals, tripler, ulog):
     #get n_numbers for all articles in batch. make pubs that don't already exist.
     vivo_pubs = {}
 
@@ -127,9 +129,9 @@ def add_articles(connection, pubs, pub_journ, vivo_journals, tripler, ulog, disa
             query_type = 'pass'
 
         if pub['title'] not in vivo_pubs.values():
-            pub_n = match_input(connection, pub['title'], pub_type, True, disamb_file)
+            pub_n = match_input(connection, pub['title'], pub_type, True, ulog)
             if not pub_n:
-                pub_n = match_input(connection, pub['doi'], pub_type, False, disamb_file)
+                pub_n = match_input(connection, pub['doi'], pub_type, False, ulog)
                 if not pub_n:
                     wosid = pub['wosid']
                     pub_params = queries.make_academic_article.get_params(connection)
@@ -151,6 +153,7 @@ def add_articles(connection, pubs, pub_journ, vivo_journals, tripler, ulog, disa
                         result = tripler.update(query_type, **pub_params)
                         pub_n = pub_params['Article'].n_number
                         ulog.add_to_log('articles', pub['title'], (connection.vivo_url + pub_n))
+                        ulog.add_n_to_ambiguities(pub['title'], pub_n)
                 
             vivo_pubs[pub['wosid']] = pub_n
     return vivo_pubs
@@ -174,7 +177,7 @@ def add_valid_data(article, feature, value):
     if value:
         setattr(article, feature, value)
 
-def match_input(connection, label, category, name, disamb_file):
+def match_input(connection, label, category, name, ulog):
     details = queries.find_n_for_label.get_params(connection)
     details['Thing'].extra = label
     details['Thing'].type = category
@@ -214,9 +217,7 @@ def match_input(connection, label, category, name, disamb_file):
                 match = list(choices.keys())[0]
 
         if len(choices) > 1:
-            with open(disamb_file, "a+") as dis_file:
-                #TODO: this won't contain the about-to-be-newly added uri
-                dis_file.write("{} has possible uris: \n{}\n".format(label, list(choices.keys())))
+            ulog.track_ambiguities(label, list(choices.keys()))
     return match
 
 def main(argv1):
@@ -246,7 +247,7 @@ def main(argv1):
         pubs, pub_auth, authors, journals, pub_journ = whandler.parse_api(results)
 
     timestamp = now.strftime("%Y_%m_%d")
-    full_path = make_folders(log_folder, [now.strftime("%Y"), now.strftime("%m"), now.strftime("%d")])
+    full_path = make_folders(config.get('folder_for_logs'), [now.strftime("%Y"), now.strftime("%m"), now.strftime("%d")])
 
     disam_file = os.path.join(full_path, (timestamp + '_wos_disambiguation.txt'))
     output_file = os.path.join(full_path, (timestamp + '_wos_output_file.txt'))
@@ -257,9 +258,9 @@ def main(argv1):
     ulog = UpdateLog()
 
     try:
-        vivo_authors = add_authors(connection, authors, tripler, ulog, disam_file)
-        vivo_journals = add_journals(connection, journals, tripler, ulog, disam_file)
-        vivo_articles = add_articles(connection, pubs, pub_journ, vivo_journals, tripler, ulog, disam_file)
+        vivo_authors = add_authors(connection, authors, tripler, ulog)
+        vivo_journals = add_journals(connection, journals, tripler, ulog)
+        vivo_articles = add_articles(connection, pubs, pub_journ, vivo_journals, tripler, ulog)
         add_authors_to_pubs(connection, pub_auth, vivo_articles, vivo_authors, tripler, ulog)
     except Exception as e:
         print('Error')
@@ -270,10 +271,11 @@ def main(argv1):
 
     are_uploads = ulog.create_file(upload_file)
     ulog.write_skips(skips_file)
+    ulog.write_disam_file(disam_file)
 
     if args[_rdf]:
         rdf_file = timestamp + '_upload.rdf'
-        rdf_filepath = os.path.join(uploads, rdf_file)
+        rdf_filepath = os.path.join(full_path, rdf_file)
         tripler.print_rdf(rdf_filepath)
 
     # if are_uploads and args[_api]:
