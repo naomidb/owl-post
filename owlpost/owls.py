@@ -1,12 +1,12 @@
-import os
-import os.path
 import pprint
 import sys
 import yaml
 
 from vivo_queries import catalog
 from vivo_queries.vivo_connect import Connection
+from vivo_queries.vdos.author import Author
 from vivo_queries import queries
+
 
 def get_config(config_path):
     try:
@@ -16,6 +16,7 @@ def get_config(config_path):
         print("Error: Check config file")
         exit()
     return config
+
 
 def prepare_query(connection):
     template_choice = get_template_type('queries')
@@ -33,6 +34,7 @@ def prepare_query(connection):
     response = template_mod.run(connection, **params)
     pprint.pprint(response)
 
+
 def get_template_type(folder):
     available_queries = catalog.list_queries()
     template_options = {}
@@ -46,6 +48,7 @@ def get_template_type(folder):
     index = int(input("Enter number of query: "))
     return template_options.get(index)
 
+
 def fill_details(connection, key, item, task):
     """
     Given an item, calls get_details and iterates through the list, prompting the user for the literal values.
@@ -54,19 +57,33 @@ def fill_details(connection, key, item, task):
     try:
         sub_task = "make_" + item.type
     except TypeError as e:
-        sub_task = None   #Anything using a Thing will have a blank type
+        sub_task = None   # Anything using a Thing will have a blank type
+
+    sub_key = ''
+
+    # For Grant
+    if sub_task != task and task == 'make_grant':
+        if key in ['AwardingDepartment', 'SubContractedThrough', 'AdministeredBy']:
+            sub_task = 'make_organization'
+            sub_key = 'Organization'
+        elif key == 'SupportedWork':
+            sub_task = 'make_academic_article'
+            sub_key = 'Article'
+        elif key == 'Contributor_PI' or key == 'Contributor_CoPI':
+            sub_task = 'make_contributor'
+            sub_key = 'Contributor'
 
     print("Fill in the values for the following (if you do not have a value, leave blank):")
-    #Check if user knows n number
+    # Check if user knows n number
     obj_n = input("N number: ")
     if obj_n:
         item.n_number = obj_n
-        #TODO: add label check
+        # TODO: add label check
     else:
-        #For non-Thing objects, ask for further detail
+        # For non-Thing objects, ask for further detail
         if key != 'Thing':
             obj_name=''
-            #Ask for label
+            # Ask for label
             if key == 'Author':
                 first_name = input("First name: ")
                 if first_name:
@@ -101,21 +118,37 @@ def fill_details(connection, key, item, task):
 
             if obj_name:
                 item.name = scrub(obj_name)
-                #Check if label already exists
-                match = match_input(connection, item.name, item.type)
 
+                # Contributor for Grants
+                if item.type == 'contributor' and key == 'Contributor_PI':
+                    item.type = 'contributor_pi'
+                elif item.type == 'contributor' and key == 'Contributor_CoPI':
+                    item.type = 'contributor_copi'
+
+                # Check if label already exists
+                match = match_input(connection, item.name, item.type, True)
                 if not match:
                     if sub_task != task:
-                        #If this entity is not the original query, make entity
+                        # If this entity is not the original query, make entity
                         create_obj = input("This " + item.type + " is not in the database. Would you like to add it? (y/n) ")
                         if create_obj == 'y' or create_obj == 'Y':
                             try:
+                                details = item.get_details()
+                                for feature in details:
+                                    item_info = input(str(feature) + ": ")
+                                    setattr(item, feature, item_info)
+
                                 update_path = getattr(queries, sub_task)
                                 sub_params = update_path.get_params(connection)
-                                sub_params[key] = item
+                                if sub_key == '':
+                                    sub_params[key] = item
+                                else:
+                                    sub_params[sub_key] = item
+
                                 response = update_path.run(connection, **sub_params)
                                 print(response)
                             except Exception as e:
+                                print(e)
                                 print("Owl Post can not create a(n) " + item.type + " at this time. Please go to your vivo site and make it manually.")
                             return
                 else:
@@ -123,22 +156,23 @@ def fill_details(connection, key, item, task):
                     print("The n number for this " + item.type + " is " + item.n_number)
                     return
             else:
-                #TODO: Decide what to do if no name
-                pass;
+                # TODO: Decide what to do if no name
+                pass
 
-        if key=='Thing' or obj_name:
+        if key == 'Thing' or obj_name:
             details = item.get_details()
             for feature in details:
                 item_info = input(str(feature) + ": ")
                 setattr(item, feature, item_info)
 
-        # else:
-        #     print("Look up the n number and try again.")   #What's going on here?
 
-def match_input(connection, label, category):
+def match_input(connection, label, category, exact_match):
+
     details = queries.find_n_for_label.get_params(connection)
     details['Thing'].extra = label
     details['Thing'].type = category
+
+    print(category)
 
     matches = queries.find_n_for_label.run(connection, **details)
 
@@ -147,6 +181,16 @@ def match_input(connection, label, category):
     for key, val in matches.items():
         choices[count] = (key, val)
         count += 1
+
+    if exact_match:
+        if choices:
+            for key, val in choices.items():
+                number, lab = val
+                if lab.lower() == label.lower():
+                    match = number
+                    return match
+        match = None
+        return None
 
     index = -1
     if choices:
@@ -164,9 +208,11 @@ def match_input(connection, label, category):
 
     return match
 
+
 def scrub(label):
     clean_label = label.replace('"', '\\"')
     return clean_label
+
 
 def main(argv1):
     config_path = argv1
@@ -181,6 +227,7 @@ def main(argv1):
     connection = Connection(vivo_url, email, password, update_endpoint, query_endpoint)
 
     prepare_query(connection)
+
 
 if __name__ == '__main__':
     main(sys.argv[1])
