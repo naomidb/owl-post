@@ -54,8 +54,7 @@ def make_folders(top_folder, sub_folders=None):
     return top_folder
 
 def search_pubmed(handler, log_file):
-    #query = 'University of Florida[Affiliation] AND "last 1 days"[edat]'
-    query = 'Dileep, Anandu[Full Author Name]'
+    query = 'University of Florida[Affiliation] AND "last 1 days"[edat]'
 
     print("Searching pubmed")
     results = handler.get_data(query, log_file)
