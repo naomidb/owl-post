@@ -1,5 +1,5 @@
-docstr = """
-Hermes
+cdocstr = """
+Pigwidgeon
 Usage:
     pigwidgeon.py (-h | --help)
     pigwidgeon.py (-a | -r) <config_file>
@@ -11,53 +11,38 @@ Options:
  """
 
 from docopt import docopt
+import os.path
 import sys
-from time import localtime, strftime
+import datetime
 import yaml
 
-from vivo_queries.vdos.article import Article
-from vivo_queries.vdos.author import Author
-from vivo_queries.vdos.journal import Journal
+from vivo_utils.vdos.article import Article
+from vivo_utils.vdos.author import Author
+from vivo_utils.vdos.journal import Journal
 from pubmed_handler import Citation, PHandler
-from vivo_queries import queries
-from vivo_queries.vivo_connect import Connection
-from vivo_queries.triple_handler import TripleHandler
+from vivo_utils import queries
+from vivo_utils.vivo_connect import Connection
+from vivo_utils.triple_handler import TripleHandler
+from vivo_utils.update_log import UpdateLog
 
 CONFIG_PATH = '<config_file>'
 _api = '--api'
 _rdf = '--rdf'
 
-class TripleStore(object):
-    def __init__(self):
-        self.triples = []
-
-    def search_for_label(self, label):
-        for trip in self.triples:
-            if label in trip:
-                #get existing n number
-                uri = trip.split('>', 1)[0]
-                number = uri.rsplit('/', 1)[-1]
-                return number
-        return None
-
-    def add_triple(self, sentence):
-        self.triples.append(sentence)
-
-    def write_to_file(self, filepath):
-        with open(filepath, 'w') as output:
-            for triple in self.triples:
-                output.write(triple + '\n')
-
 def get_config(config_path):
-    try:
-        with open(config_path, 'r') as config_file:
-            config = yaml.load(config_file.read())
-    except:
-        print("Error: Check config file")
-        exit()
-    return config
+m
 
-def identify_author(connection, tripler):
+def make_folders(top_folder, sub_folders=None):
+    if not os.path.isdir(top_folder):
+        os.mkdir(top_folder)
+
+    if sub_folders:
+        sub_top_folder = os.path.join(top_folder, sub_folders[0])
+        top_folder = make_folders(sub_top_folder, sub_folders[1:])
+
+    return top_folder
+
+def identify_author(connection, tripler, ulog):
     author = Author(connection)
     obj_n = input("Enter the n number of the person (if you do not know, leave blank): ")
     if obj_n:
@@ -81,7 +66,6 @@ def identify_author(connection, tripler):
         if not match:
             create_obj = input("This person is not in the database. Would you like to add them? (y/n) ")
             if create_obj == 'y' or create_obj == 'Y':
-                global triples
                 print("Fill in the following details. Leave blank if you do not know what to write.")
                 details = author.get_details()
                 for detail in details:
@@ -89,15 +73,14 @@ def identify_author(connection, tripler):
                     setattr(author, detail, item_info)
 
                 params = {'Author': author}
-                #triple = queries.make_person.write_rdf(connection, **params)
-                #store.add_triple(triple)
                 result = tripler.update(queries.make_person, **params)
+                ulog.add_to_log('authors', author.name, (connection.namespace + params['Author'].n_number))
                 print('*' * 6 + '\nAdding person\n' + '*' * 6)
 
     return author
 
-def sort_articles(connection, pub, author, tripler):
-    #TODO: add reviews, editorials, letters
+def sort_articles(connection, pub, author, tripler, ulog):
+    #TODO: add reviews
     citation = Citation(pub['MedlineCitation'])
     try:
         obj_type = str(citation.check_key(['Article', 'PublicationTypeList'])[0])
@@ -124,71 +107,70 @@ def sort_articles(connection, pub, author, tripler):
         pass
     article.pmid =  citation.check_key(['PMID'])
 
-    journal = get_journal(connection, citation, tripler)
+    journal = get_journal(connection, citation, tripler, ulog)
 
     if obj_type=='Journal Article':
         #check if article exists
         match = match_input(tripler, connection, article.name, article.type, False)    #check with article title
-        if not match and article.doi:
-            match = match_input(tripler, connection, article.doi, article.type, False) #check with article doi
+        if not match:
+            if article.doi:
+                match = match_input(tripler, connection, article.doi, article.type, False) #check with article doi
             if not match:
                 params = {'Article': article, 'Author': author, 'Journal': journal}
-                #triple = queries.make_academic_article.write_rdf(connection, **params)
-                #store.add_triple(triple)
                 result = tripler.update(queries.make_academic_article, **params)
+                ulog.add_to_log('articles', article.name, (connection.namespace + article.n_number))
                 print('*' * 6 + '\nAdding article\n' + '*' * 6)
-
-        if match:
-            return None
 
     elif obj_type=='Editorial':
         article.type = 'editorial'
         match = match_input(tripler, connection, article.name, article.type, False)    #check with article title
-        if not match and article.doi:
-            match = match_input(tripler, connection, article.doi, article.type, False) #check with article doi
+        if not match:
+            if article.doi:
+                match = match_input(tripler, connection, article.doi, article.type, False) #check with article doi
             if not match:
                 params = {'Article': article, 'Author': author, 'Journal': journal}
                 result = tripler.update(queries.make_editorial_article, **params)
+                ulog.add_to_log('articles', article.name, (connection.namespace + article.n_number))
                 print('*' * 6 + '\nAdding article\n' + '*' * 6)
 
     elif obj_type=='Letter':
         article.type='letter'
         match = match_input(tripler, connection, article.name, article.type, False)    #check with article title
-        if not match and article.doi:
-            match = match_input(tripler, connection, article.doi, article.type, False) #check with article doi
+        if not match:
+            if article.doi:
+                match = match_input(tripler, connection, article.doi, article.type, False) #check with article doi
             if not match:
                 params = {'Article': article, 'Author': author, 'Journal': journal}
                 result = tripler.update(queries.make_letter, **params)
+                ulog.add_to_log('articles', article.name, (connection.namespace + article.n_number))
                 print('*' * 6 + '\nAdding article\n' + '*' * 6)
 
     else:
         match = match_input(tripler, connection, article.name, 'thing', False)
-        with open('/Users/looseymoose/Desktop/skipped.txt', 'a+') as skips:
-            if match:
-                skips.write('PMID ' + article.pmid + ' found at ' + match + '\n\n')
-            else:
-                skips.write('pmid: ' + article.pmid + '\n')
-                try:
-                    skips.write('doi: ' + str(article.doi) + '\n')
-                    skips.write('title: ' + article.name + '\n')
-                    skips.write('volume: ' + str(article.volume) + '\n')
-                    skips.write('issue: ' + str(article.issue) + '\n')
-                    skips.write('pages: ' + citation.check_key(['Article', 'Pagination', 'MedlinePgn']) + '\n')
-                    skips.write('year: ' + str(article.publication_year) + '\n')
-                    skips.write('journal: ' + citation.check_key(['Article', 'Journal', 'Title']).title() + '\n')
-                    skips.write('issn: ' + str(citation.check_key(['Article', 'Journal', 'ISSN'])) + '\n')
-                    skips.write('type: ' + str(obj_type) + '\n')
-                except Exception as e:
-                    skips.write('Error printing details')
-                    print(e)
-                skips.write('\n\n')
-        return None
+        if match:
+            print('PMID ' + article.pmid + ' found at ' + match + '\n\n')
+        else:
+            pages = citation.check_key(['Article', 'Pagination', 'MedlinePgn'])
+            try:
+                start, end = pages.split('-')
+            except ValueError as e:
+                start = pages
+                end = None
+            # skip_info = {'doi': str(article.doi),
+            #             'title': article.name,
+            #             'volume': str(article.volume),
+            #             'issue': str(article.issue),
+            #             'start': start,
+            #             'end': end,
+            #             'journal': citation.check_key(['Article', 'Journal', 'Title']).title()}
+            params = {'Article': article, 'Journal': journal}
+            ulog.track_skips(article.pmid, str(obj_type), **params)
 
 def scrub(label):
     clean_label = label.replace('"', '\\"')
     return clean_label
 
-def get_journal(connection, citation, tripler):
+def get_journal(connection, citation, tripler, ulog):
     parts = queries.make_journal.get_params(connection)
     parts['Journal'].name = citation.check_key(['Article', 'Journal', 'Title']).title()
     parts['Journal'].issn = str(citation.check_key(['Article', 'Journal', 'ISSN']))
@@ -204,9 +186,8 @@ def get_journal(connection, citation, tripler):
         if match:
             parts['Journal'].n_number = match
         else:
-            #triple = queries.make_journal.write_rdf(connection, **parts)
-            #store.add_triple(triple)
             result = tripler.update(queries.make_journal, **parts)
+            ulog.add_to_log('journals', parts['Journal'].name, (connection.namespace + parts['Journal'].n_number))
             print('*' * 6 + '\nAdding journal\n' + '*' * 6)
 
     return parts['Journal']
@@ -283,33 +264,46 @@ def match_input(tripler, connection, label, category, interact=False):
 
 def main(args):
     config = get_config(args[CONFIG_PATH])
-
     email = config.get('email')
-    password = config.get ('password')
+    password = config.get('password')
     update_endpoint = config.get('update_endpoint')
     query_endpoint = config.get('query_endpoint')
-    vivo_url = config.get('upload_url')
+    namespace = config.get('namespace')
+    filter_folder = config.get('filter_folder')
 
-    connection = Connection(vivo_url, email, password, update_endpoint, query_endpoint)
-    #trip_store = TripleStore()
-    tripler = TripleHandler(args[_api], connection)
+    db_name = '/tmp/vivo_temp_storage.db'
 
-    author = identify_author(connection, tripler)
+    connection = Connection(namespace, email, password, update_endpoint, query_endpoint)
+    vivo_log.update_db(connection, db_name)
     handler = PHandler(email)
+
+    now = datetime.datetime.now()
+    timestamp = now.strftime("%Y_%m_%d_%H_%M")
+    full_path = make_folders(config.get('folder_for_logs'), [now.strftime("%Y"), now.strftime("%m"), now.strftime("%d")])
+
+    output_file = os.path.join(full_path, (timestamp + '_pig_output_file.txt'))
+    upload_file = os.path.join(full_path, (timestamp + '_pig_upload_log.txt'))
+    skips_file = os.path.join(full_path, (timestamp + '_pig_skips_.json'))
+    
+    tripler = TripleHandler(args[_api], connection)
+    ulog = UpdateLog()
+    
+    author = identify_author(connection, tripler, ulog)
+    
     query = input("Write your pubmed query: ")
     raw_articles = handler.get_data(query)
 
     for citing in raw_articles['PubmedArticle']:
-        sort_articles(connection, citing, author, tripler)
+        sort_articles(connection, citing, author, tripler, ulog)
 
-    #trip_store.write_to_file('data_out/upload.rdf')
+    are_uploads = ulog.create_file(upload_file)
+    ulog.write_skips(skips_file)
 
     if args[_rdf]:
-        timestamp = strftime("%Y_%m_%d_%H_%M")
-        filename = timestamp + '_upload.rdf'
-        filepath = '/Users/looseymoose/Desktop/' + filename
-        tripler.write_to_file(filepath)
-        print('Check ' + filepath)
+        rdf_file = timestamp + '_upload.rdf'
+        rdf_filepath = os.path.join(full_path, rdf_file)
+        tripler.print_rdf(rdf_filepath)
+        print('Check ' + rdf_filepath)
 
 if __name__ == '__main__':
     args = docopt(docstr)

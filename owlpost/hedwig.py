@@ -17,11 +17,11 @@ import os.path
 import datetime
 import yaml
 
-from vivo_queries import queries
-from vivo_queries.vdos.auth_match import Auth_Match
-from vivo_queries.vivo_connect import Connection
-from vivo_queries.triple_handler import TripleHandler
-from vivo_queries.update_log import UpdateLog
+from vivo_utils import queries
+from vivo_utils.vdos.auth_match import Auth_Match
+from vivo_utils.vivo_connect import Connection
+from vivo_utils.triple_handler import TripleHandler
+from vivo_utils.update_log import UpdateLog
 
 import wos
 from wos_connect import WOSnnection
@@ -56,6 +56,7 @@ def make_folders(top_folder, sub_folders=None):
 
 def add_authors(connection, authors, tripler, ulog):
     #get n_numbers for all authors included in batch. make authors that don't already exist.
+    all_authors = queries.get_person_list.run(connection, {})
     vivo_authors = {}
     for author in authors:
         if author not in vivo_authors.keys():
@@ -116,17 +117,23 @@ def add_articles(connection, pubs, pub_journ, vivo_journals, tripler, ulog):
     for pub in pubs:
         pub_type = None
         query_type = None
-        if pub['type'] == 'Journal Article':
+        if pub['type'] == 'Article' or pub['type'] == 'Article; Early Access' or pub['type'] == 'Article; Proceedings Paper':
             pub_type = 'academic_article'
             query_type = getattr(queries, 'make_academic_article')
         elif pub['type'] == 'Letter':
             pub_type = 'letter'
             query_type = getattr(queries, 'make_letter')
-        elif pub['type'] == 'Editorial' or pub['type'] == 'Comment':
+        elif pub['type'] == 'Editorial Material':
             pub_type = 'editorial'
             query_type = getattr(queries, 'make_editorial_article')
+        elif pub['type'] == 'Meeting Abstract':
+            pub_type = 'abstract'
+            query_type = getattr(queries, 'make_abstract')
         else:
             query_type = 'pass'
+
+        pub_type = 'academic_article'
+        query_type = getattr(queries, 'make_academic_article')
 
         if pub['title'] not in vivo_pubs.values():
             pub_n = match_input(connection, pub['title'], pub_type, True, ulog)
@@ -148,7 +155,7 @@ def add_articles(connection, pubs, pub_journ, vivo_journals, tripler, ulog):
                     pub_params['Journal'].n_number = journal_n 
                     
                     if query_type=='pass':
-                        ulog.track_skips(pub['type'], **pub_params)
+                        ulog.track_skips(wosid, pub['type'], **pub_params)
                     else:
                         result = tripler.update(query_type, **pub_params)
                         pub_n = pub_params['Article'].n_number
@@ -220,7 +227,7 @@ def match_input(connection, label, category, name, ulog):
             ulog.track_ambiguities(label, list(choices.keys()))
     return match
 
-def main(argv1):
+def main(args):
     config = get_config(args[CONFIG_PATH])
 
     email = config.get('email')
@@ -240,19 +247,24 @@ def main(argv1):
         pubs, pub_auth, authors, journals, pub_journ = whandler.parse_csv(csv_data)
     elif args[_query]:
         query = 'AD=(University Florida OR Univ Florida OR UFL OR UF)'
-        end = now.strftime("%Y-%m-%d")
-        then = now - datetime.timedelta(days=1)
-        start = then.strftime("%Y-%m-%d")
+        begin = now - datetime.timedelta(days=3)
+        start = begin.strftime("%Y-%m-%d")
+        finish = now - datetime.timedelta(days=2)
+        end = finish.strftime("%Y-%m-%d")
+
+        # end = now.strftime("%Y-%m-%d")
+        # then = now - datetime.timedelta(days=1)
+        # start = then.strftime("%Y-%m-%d")
         results = whandler.get_data(query, start, end)
         pubs, pub_auth, authors, journals, pub_journ = whandler.parse_api(results)
 
     timestamp = now.strftime("%Y_%m_%d")
     full_path = make_folders(config.get('folder_for_logs'), [now.strftime("%Y"), now.strftime("%m"), now.strftime("%d")])
 
-    disam_file = os.path.join(full_path, (timestamp + '_wos_disambiguation.txt'))
+    disam_file = os.path.join(full_path, (timestamp + '_wos_disambiguation.json'))
     output_file = os.path.join(full_path, (timestamp + '_wos_output_file.txt'))
     upload_file = os.path.join(full_path, (timestamp + '_wos_upload_log.txt'))
-    skips_file = os.path.join(full_path, (timestamp + '_wos_skips_.txt'))
+    skips_file = os.path.join(full_path, (timestamp + '_wos_skips_.json'))
     
     tripler = TripleHandler(args[_api], connection, output_file)
     ulog = UpdateLog()

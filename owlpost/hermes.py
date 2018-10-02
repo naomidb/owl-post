@@ -18,11 +18,11 @@ import os
 import os.path
 import yaml
 
-from vivo_queries import queries
-from vivo_queries.name_cleaner import clean_name
-from vivo_queries.vivo_connect import Connection
-from vivo_queries.triple_handler import TripleHandler
-from vivo_queries.update_log import UpdateLog
+from vivo_utils import queries
+from vivo_utils.name_cleaner import clean_name
+from vivo_utils.vivo_connect import Connection
+from vivo_utils.triple_handler import TripleHandler
+from vivo_utils.update_log import UpdateLog
 
 from pubmed_handler import PHandler
 
