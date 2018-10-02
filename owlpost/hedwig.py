@@ -6,27 +6,28 @@ Usage:
 
 Options:
 -h --help        Show this message and exit
--q --query       Use the WOS api to get new publication data
+-q --query       Use the WOS api to get new publication data (not functional)
 -b --bibtex      Get new publication data from bibtex file (path in config file)
 -a --api         Use VIVO update api to upload data immediately
 -r --rdf         Produce rdf files with new data
 """
 
 from docopt import docopt
+import os
 import os.path
 import datetime
 import yaml
 
 from vivo_utils import queries
-from vivo_utils.vdos.auth_match import Auth_Match
-from vivo_utils.vivo_connect import Connection
+from vivo_utils.connections.vivo_connect import Connection
+from vivo_utils import vivo_log
 from vivo_utils.triple_handler import TripleHandler
 from vivo_utils.update_log import UpdateLog
+from vivo_utils.connections.wos_connect import WOSnnection
+from vivo_utils.handlers.wos_handler import WHandler
 
-import wos
-from wos_connect import WOSnnection
-from wos_handler import WHandler
-import daily_prophet
+# TODO Add query method
+# TODO Use daily_prophet for update e-mails
 
 CONFIG_PATH = '<config_file>'
 _query = '--query'
@@ -54,246 +55,267 @@ def make_folders(top_folder, sub_folders=None):
 
     return top_folder
 
-def add_authors(connection, authors, tripler, ulog):
-    #get n_numbers for all authors included in batch. make authors that don't already exist.
-    all_authors = queries.get_person_list.run(connection, {})
-    vivo_authors = {}
-    for author in authors:
-        if author not in vivo_authors.keys():
-            author_n = match_input(connection, author, 'person', True, ulog)
-            if not author_n:
-                first = middle = last = ""
-                try:
-                    last, rest = author.split(", ")
-                    try:
-                        first, middle = rest.split(" ", 1)
-                    except ValueError as e:
-                        first = rest
-                except ValueError as e:
-                    last = author
-                auth_params = queries.make_person.get_params(connection)
-                auth_params['Author'].name = author
-                auth_params['Author'].last = last
-                if first:
-                    auth_params['Author'].first = first
-                if middle:
-                    auth_params['Author'].middle = middle
+def check_filter(abbrev_filter, name_filter, name):
+    if os.path.isfile(abbrev_filter):
+        cleanfig = get_config(abbrev_filter)
+        abbrev_table = cleanfig.get('abbrev_table')
+        name += " " #Add trailing space
+        name = name.replace('\\', '')
+        for abbrev in abbrev_table:
+            if (abbrev) in name:
+                name = name.replace(abbrev, abbrev_table[abbrev])
+        name = name[:-1] #Remove final space
 
-                result = tripler.update(queries.make_person, **auth_params)
-                author_n = auth_params['Author'].n_number
-                ulog.add_to_log('authors', author, (connection.vivo_url + author_n))
-                ulog.add_n_to_ambiguities(author, author_n)
+    if os.path.isfile(name_filter):
+        namefig = get_config(name_filter)
+        try:
+            if name.upper() in namefig.keys():
+                name = namefig.get(name.upper())
+        except AttributeError as e:
+            name = name
 
-            vivo_authors[author] = author_n
-    return vivo_authors
+    return name
 
-def add_journals(connection, journals, tripler, ulog):
-    #get n_numbers for all journals included in batch. make journals that don't already exist.
-    vivo_journals = {}
-    for issn, journal in journals.items():
-        if issn not in vivo_journals.keys():
-            journal_n = match_input(connection, journal, 'journal', True, ulog)
-            if not journal_n:
-                journal_n = match_input(connection, issn, 'journal', False, ulog)
-                if not journal_n:
-                    journal_params = queries.make_journal.get_params(connection)
-                    journal_params['Journal'].name = journal
-                    journal_params['Journal'].issn = issn
-
-                    result = tripler.update(queries.make_journal, **journal_params)
-                    #result = queries.make_journal.run(connection, **journal_params)
-                    journal_n = journal_params['Journal'].n_number
-                    ulog.add_to_log('journals', journal, (connection.vivo_url + journal_n))
-                    ulog.add_n_to_ambiguities(journal, journal_n)
-
-            vivo_journals[issn] = journal_n
-
-    return vivo_journals
-
-def add_articles(connection, pubs, pub_journ, vivo_journals, tripler, ulog):
-    #get n_numbers for all articles in batch. make pubs that don't already exist.
-    vivo_pubs = {}
-
-    for pub in pubs:
-        pub_type = None
-        query_type = None
-        if pub['type'] == 'Article' or pub['type'] == 'Article; Early Access' or pub['type'] == 'Article; Proceedings Paper':
-            pub_type = 'academic_article'
-            query_type = getattr(queries, 'make_academic_article')
-        elif pub['type'] == 'Letter':
-            pub_type = 'letter'
-            query_type = getattr(queries, 'make_letter')
-        elif pub['type'] == 'Editorial Material':
-            pub_type = 'editorial'
-            query_type = getattr(queries, 'make_editorial_article')
-        elif pub['type'] == 'Meeting Abstract':
-            pub_type = 'abstract'
-            query_type = getattr(queries, 'make_abstract')
+def process(connection, publication, added_authors, tripler, ulog, db_name, filter_folder):
+    abbrev_filter = os.path.join(filter_folder, 'general_filter.yaml')
+    publisher_n = None
+    if publication.publisher:
+        p_filter = os.path.join(filter_folder, 'publisher_filter.yaml')
+        publication.publisher = check_filter(abbrev_filter, p_filter, publication.publisher)
+        publisher_matches = vivo_log.lookup(db_name, 'publishers', publication.publisher, 'name')
+        if len(publisher_matches) == 0:
+            publisher_matches = vivo_log.lookup(db_name, 'publishers', publication.publisher, 'name', True)
+        if len(publisher_matches) == 1:
+            publisher_n = publisher_matches[0][0]
         else:
-            query_type = 'pass'
+            publisher_params = queries.make_publisher.get_params(connection)
+            publisher_params['Publisher'].name = publication.publisher
+            tripler.update(queries.make_publisher, **publisher_params)
 
+            publisher_n = publisher_params['Publisher'].n_number
+            ulog.add_to_log('publishers', publication.publisher, (connection.namespace + publisher_n))
+            if len(publisher_matches) > 1:
+                pbl_n_list = [publisher_n]
+                for pbl_match in publisher_matches:
+                    pbl_n_list.append(pbl_match[0])
+                ulog.track_ambiguities(publication.publisher, pbl_n_list)
+
+    journal_n = None
+    if publication.journal:
+        j_filter = os.path.join(filter_folder, 'journal_filter.yaml')
+        publication.journal = check_filter(abbrev_filter, j_filter, publication.journal)
+        journal_matches = vivo_log.lookup(db_name, 'journals', publication.journal, 'name')
+        if len(journal_matches) == 0:
+            journal_matches = vivo_log.lookup(db_name, 'journals', publication.journal, 'name', True)
+            if len(journal_matches) == 0:
+                journal_matches = vivo_log.lookup(db_name, 'journals', publication.issn, 'issn')
+        if len(journal_matches) == 1:
+            journal_n = journal_matches[0][0]
+        else:
+            journal_params = queries.make_journal.get_params(connection)
+            journal_params['Journal'].name = publication.journal
+            journal_params['Journal'].issn = publication.issn
+            journal_params['Publisher'].n_number = publisher_n
+            tripler.update(queries.make_journal, **journal_params)
+
+            journal_n = journal_params['Journal'].n_number
+            ulog.add_to_log('journals', publication.journal, (connection.namespace + journal_n))
+            if len(journal_matches) > 1:
+                jrn_n_list = [journal_n]
+                for jrn_match in journal_matches:
+                    jrn_n_list.append(jrn_match[0])
+                ulog.track_ambiguities(publication.journal, jrn_n_list)
+
+    pub_n = add_pub(connection, publication, journal_n, tripler, ulog, db_name)            
+
+    if publication.authors:
+        author_ns = []
+        for author in publication.authors:
+            if pub_n:
+                author_n = add_authors(connection, publication, author, added_authors, tripler, ulog, db_name)
+                author_ns.append((author_n, author))
+            else:
+                ulog.add_author_to_skips(publication.wosid, author)
+
+    if pub_n:
+        add_authors_to_pub(connection, pub_n, publication.wosid, author_ns, tripler, ulog)
+        print("Pub added")
+
+def add_pub(connection, publication, journal_n, tripler, ulog, db_name):
+    pub_type = None
+    query_type = None
+    if publication.type == 'Article' or publication.type == 'Article; Early Access' or publication.type == 'Article; Proceedings Paper':
         pub_type = 'academic_article'
         query_type = getattr(queries, 'make_academic_article')
-
-        if pub['title'] not in vivo_pubs.values():
-            pub_n = match_input(connection, pub['title'], pub_type, True, ulog)
-            if not pub_n:
-                pub_n = match_input(connection, pub['doi'], pub_type, False, ulog)
-                if not pub_n:
-                    wosid = pub['wosid']
-                    pub_params = queries.make_academic_article.get_params(connection)
-                    pub_params['Article'].name = pub['title']
-                    add_valid_data(pub_params['Article'], 'volume', pub['volume'])
-                    add_valid_data(pub_params['Article'], 'issue', pub['issue'])
-                    add_valid_data(pub_params['Article'], 'publication_year', pub['year'])
-                    add_valid_data(pub_params['Article'], 'doi', pub['doi'])
-                    add_valid_data(pub_params['Article'], 'start_page', pub['start'])
-                    add_valid_data(pub_params['Article'], 'end_page', pub['end'])
-
-                    issn = pub_journ[wosid]
-                    journal_n = vivo_journals[issn]
-                    pub_params['Journal'].n_number = journal_n 
-                    
-                    if query_type=='pass':
-                        ulog.track_skips(wosid, pub['type'], **pub_params)
-                    else:
-                        result = tripler.update(query_type, **pub_params)
-                        pub_n = pub_params['Article'].n_number
-                        ulog.add_to_log('articles', pub['title'], (connection.vivo_url + pub_n))
-                        ulog.add_n_to_ambiguities(pub['title'], pub_n)
-                
-            vivo_pubs[pub['wosid']] = pub_n
-    return vivo_pubs
-
-def add_authors_to_pubs(connection, pub_auth, vivo_pubs, vivo_authors, tripler, ulog):
-    for pub, auth_list in pub_auth.items():
-        for author in auth_list:
-            params = queries.add_author_to_pub.get_params(connection)
-            params['Article'].n_number = vivo_pubs[pub]
-            params['Author'].n_number = vivo_authors[author]
-
-            if pub in ulog.skips.keys():
-                ulog.add_author_to_skips(pub, author)
-            else:
-                old_author = queries.check_author_on_pub.run(connection, **params)
-                if not old_author:
-                    result = tripler.update(queries.add_author_to_pub, **params)
-                    #result = queries.add_author_to_pub.run(connection, **params)
-
-def add_valid_data(article, feature, value):
-    if value:
-        setattr(article, feature, value)
-
-def match_input(connection, label, category, name, ulog):
-    details = queries.find_n_for_label.get_params(connection)
-    details['Thing'].extra = label
-    details['Thing'].type = category
-    choices = {}
-    match = None
-
-    if not name:
-        if category == 'journal':
-            choices = queries.find_n_for_issn.run(connection, **details)
-            if len(choices) == 1:
-                match = list(choices.keys())[0]
-
-        if category == 'academic_article':
-            choices = queries.find_n_for_doi.run(connection, **details)
-            if len(choices) == 1:
-                match = list(choices.keys())[0]
-
+    elif publication.type == 'Letter':
+        pub_type = 'letter'
+        query_type = getattr(queries, 'make_letter')
+    elif publication.type == 'Editorial Material':
+        pub_type = 'editorial'
+        query_type = getattr(queries, 'make_editorial_article')
+    elif publication.type == 'Meeting Abstract':
+        pub_type = 'abstract'
+        query_type = getattr(queries, 'make_abstract')
     else:
-        matches = queries.find_n_for_label.run(connection, **details)
-        for key, val in matches.items():
-            val = val.rstrip()
-            val = val.lstrip()
-            if label.lower() == val.lower():
-                choices[key] = val
+        query_type = 'pass'
 
-        #perfect match
-        if len(choices) == 1:
-            match = list(choices.keys())[0]
+    publication_matches = vivo_log.lookup(db_name, 'publications', publication.title, 'title')
+    if len(publication_matches) == 0:
+        publication_matches = vivo_log.lookup(db_name, 'publications', publication.doi, 'doi')
+    if len(publication_matches) == 1:
+        pub_n = publication_matches[0][0]
+    else:
+        pub_params = queries.make_academic_article.get_params(connection)
+        pub_params['Journal'].n_number = journal_n
+        pub_params['Article'].name = publication.title
+        pub_params['Article'].volume = publication.volume
+        pub_params['Article'].issue = publication.issue
+        pub_params['Article'].publication_year = publication.year
+        pub_params['Article'].doi = publication.doi
+        pub_params['Article'].pmid = publication.pmid
+        pub_params['Article'].start_page = publication.start_page
+        pub_params['Article'].end_page = publication.end_page
+        pub_params['Article'].number = publication.number
 
-        #inclusive perfect match
-        if len(choices) == 0:
-            for key, val in matches.items():
-                if label.lower() in val.lower():
-                    choices[key] = val
+        if query_type=='pass':
+            ulog.track_skips(publication.wosid, publication.type, **pub_params)
+            pub_n = None
+        else:
+            tripler.update(query_type, **pub_params)
+            pub_n = pub_params['Article'].n_number
+            ulog.add_to_log('articles', publication.title, (connection.namespace + pub_n))
+            ulog.add_citation(publication, (connection.namespace + pub_n))
 
-            if len(choices) == 1:
-                match = list(choices.keys())[0]
+        if len(publication_matches) > 1:
+            pub_n_list = []
+            for pub_match in publication_matches:
+                pub_n_list.append(pub_match[0])
+            if pub_n:
+                pub_n_list.append(pub_n)
+            ulog.track_ambiguities(publication.title, pub_n_list)
+    return pub_n
 
-        if len(choices) > 1:
-            ulog.track_ambiguities(label, list(choices.keys()))
-    return match
+def add_authors(connection, publication, author, added_authors, tripler, ulog, db_name):
+    first = middle = last = ""
+    try:
+        last, rest = author.split(', ')
+        try:
+            first, middle = rest.split(" ", 1)
+        except ValueError as e:
+            first = rest
+    except ValueError as e:
+        last = author
+    matches = vivo_log.lookup(db_name, 'authors', author, 'display')
+    if author in added_authors.keys():
+        matches.append(added_authors[author])
+
+    if len(matches) == 0:
+        matches = vivo_log.lookup(db_name, 'authors', author, 'display', True)
+    if len(matches) == 1:
+        author_n = matches[0][0]
+    else:
+        params = queries.make_person.get_params(connection)
+        params['Author'].name = author
+        params['Author'].last = last
+        if first:
+            params['Author'].first = first
+        if middle:
+            params['Author'].middle = middle
+        tripler.update(queries.make_person, **params)
+
+        author_n = params['Author'].n_number
+        ulog.add_to_log('authors', author, (connection.namespace + author_n))
+        added_authors[author] = author_n 
+        if len(matches) > 1:
+            auth_n_list = [author_n]
+            for match in matches:
+                auth_n_list.append(match[0])
+            ulog.track_ambiguities(author, auth_n_list)
+    return author_n
+
+def add_authors_to_pub(connection, pub_n, wosid, author_ns, tripler, ulog):
+    for author_n, author_name in author_ns:
+        params = queries.add_author_to_pub.get_params(connection)
+        params['Article'].n_number = pub_n
+        params['Author'].n_number = author_n
+        
+        added = queries.check_author_on_pub.run(connection, **params)
+        if not added:
+            tripler.update(queries.add_author_to_pub, **params)
 
 def main(args):
-    config = get_config(args[CONFIG_PATH])
+    if args[_query]:
+        print("The query method does not work currently. Download a bibtex and use that method.")
+        exit()
 
+    config = get_config(args[CONFIG_PATH])
     email = config.get('email')
     password = config.get ('password')
     update_endpoint = config.get('update_endpoint')
     query_endpoint = config.get('query_endpoint')
-    vivo_url = config.get('upload_url')
+    namespace = config.get('namespace')
     wos_login = config.get('wos_credentials')
+    filter_folder = config.get('filter_folder')
 
-    connection = Connection(vivo_url, email, password, update_endpoint, query_endpoint)
-    whandler = WHandler(wos_login)
-    now = datetime.datetime.now()
+    db_name = '/tmp/vivo_temp_storage.db'
 
-    if args[_bibtex]:
-        input_file = config.get('input_file')
-        csv_data = whandler.bib2csv(input_file)
-        pubs, pub_auth, authors, journals, pub_journ = whandler.parse_csv(csv_data)
-    elif args[_query]:
-        query = 'AD=(University Florida OR Univ Florida OR UFL OR UF)'
-        begin = now - datetime.timedelta(days=3)
-        start = begin.strftime("%Y-%m-%d")
-        finish = now - datetime.timedelta(days=2)
-        end = finish.strftime("%Y-%m-%d")
-
-        # end = now.strftime("%Y-%m-%d")
-        # then = now - datetime.timedelta(days=1)
-        # start = then.strftime("%Y-%m-%d")
-        results = whandler.get_data(query, start, end)
-        pubs, pub_auth, authors, journals, pub_journ = whandler.parse_api(results)
-
-    timestamp = now.strftime("%Y_%m_%d")
-    full_path = make_folders(config.get('folder_for_logs'), [now.strftime("%Y"), now.strftime("%m"), now.strftime("%d")])
-
-    disam_file = os.path.join(full_path, (timestamp + '_wos_disambiguation.json'))
-    output_file = os.path.join(full_path, (timestamp + '_wos_output_file.txt'))
-    upload_file = os.path.join(full_path, (timestamp + '_wos_upload_log.txt'))
-    skips_file = os.path.join(full_path, (timestamp + '_wos_skips_.json'))
-    
-    tripler = TripleHandler(args[_api], connection, output_file)
-    ulog = UpdateLog()
+    connection = Connection(namespace, email, password, update_endpoint, query_endpoint)
+    whandler = WHandler(wos_login, False)
+    vivo_log.update_db(connection, db_name, ['authors', 'journals', 'publishers', 'publications'])
 
     try:
-        vivo_authors = add_authors(connection, authors, tripler, ulog)
-        vivo_journals = add_journals(connection, journals, tripler, ulog)
-        vivo_articles = add_articles(connection, pubs, pub_journ, vivo_journals, tripler, ulog)
-        add_authors_to_pubs(connection, pub_auth, vivo_articles, vivo_authors, tripler, ulog)
+        now = datetime.datetime.now()
+        timestamp = now.strftime("%Y_%m_%d")
+        full_path = make_folders(config.get('folder_for_logs'), [now.strftime("%Y"), now.strftime("%m"), now.strftime("%d")])
+
+        if args[_bibtex]:
+            input_file = config.get('input_file')
+            csv_data = whandler.bib2csv(input_file)
+            publications = whandler.parse_csv(csv_data)
+        elif args[_query]:
+            query = 'AD=(University Florida OR Univ Florida OR UFL OR UF)'
+            begin = now - datetime.timedelta(days=3)
+            start = begin.strftime("%Y-%m-%d")
+            finish = now - datetime.timedelta(days=2)
+            end = finish.strftime("%Y-%m-%d")
+            results = whandler.get_data(query, start, end)
+            publications = whandler.parse_api()
+
+        disam_file = os.path.join(full_path, (timestamp + '_wos_disambiguation.json'))
+        output_file = os.path.join(full_path, (timestamp + '_wos_output_file.txt'))
+        upload_file = os.path.join(full_path, (timestamp + '_wos_upload_log.txt'))
+        skips_file = os.path.join(full_path, (timestamp + '_wos_skips.json'))
+        citations_file = os.path.join(full_path, (timestamp + '_wos_citations.html'))
+        
+        meta = {'source': 'Hedwig', 'harvest_date': now.strftime("%Y-%m-%d")}
+        tripler = TripleHandler(args[_api], connection, meta, output_file)
+        ulog = UpdateLog()
+
+        added_authors = {}
+        for publication in publications:
+            process(connection, publication, added_authors, tripler, ulog, db_name, filter_folder)
+
+        upload_file_made = ulog.create_file(upload_file)
+        citation_file_made = ulog.create_citation_file(citations_file)
+        ulog.write_skips(skips_file)
+        ulog.write_disam_file(disam_file)
+
+        if args[_rdf]:
+            rdf_file = timestamp + '_upload.rdf'
+            rdf_filepath = os.path.join(full_path, rdf_file)
+            tripler.print_rdf(rdf_filepath)
+
+        os.remove(db_name)
     except Exception as e:
-        print('Error')
-        raise(e)
-        with open(output_file, 'a+') as log:
-            log.write("Error\n")
-            log.write(str(e))
+        os.remove(db_name)
+        exit(e)
 
-    are_uploads = ulog.create_file(upload_file)
-    ulog.write_skips(skips_file)
-    ulog.write_disam_file(disam_file)
-
-    if args[_rdf]:
-        rdf_file = timestamp + '_upload.rdf'
-        rdf_filepath = os.path.join(full_path, rdf_file)
-        tripler.print_rdf(rdf_filepath)
-
-    # if are_uploads and args[_api]:
-    #     emailnnection = daily_prophet.connect_to_smtp(config.get('host'), config.get('port'))
-    #     msg = daily_prophet.create_email(full_summary['Articles'], config, upload_file)
-    #     daily_prophet.send_message(msg, emailnnection, config)
+    if args[_mail]:
+        host = config.get('host')
+        port = config.get('port')
+        courier = daily_prophet.connect_to_smtp(host, port)
+        parcel = daily_prophet.create_email(ulog, config, citations_file)
+        daily_prophet.send_message(courier, parcel, config)
 
 if __name__ == '__main__':
     args = docopt(docstr)
