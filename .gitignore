@@ -131,12 +131,9 @@ p3env/
 
 # End of https://www.gitignore.io/api/macos,python
 
-the_past/
-practice
 data_in/*
 data_out/*
 owlpost/data_in/*
 owlpost/data_out/*
 config.yaml
 wos_config.yaml
-deleteme.py
