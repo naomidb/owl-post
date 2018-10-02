@@ -1,5 +1,5 @@
 FROM python:stretch
-COPY requirements.txt owl-post/ /usr/src/app/ 
+COPY requirements.txt owlpost/ /usr/src/app/ 
 WORKDIR /usr/src/app
 RUN [ ! -f config.yaml ] && { echo "Missing config file" 1>&2; exit 2; } || exit 0
 RUN mkdir qdisambiguation_files
