@@ -16,16 +16,15 @@ import datetime
 from docopt import docopt
 import mysql.connector as mariadb
 import os
-import os.path
 import yaml
 
-from vivo_utils import queries
-from vivo_utils.connections.vivo_connect import Connection
-from vivo_utils import vivo_log
-from vivo_utils.triple_handler import TripleHandler
-from vivo_utils.update_log import UpdateLog
+from owlpost.vivo_utils import queries
+from owlpost.vivo_utils.connections.vivo_connect import Connection
+from owlpost.vivo_utils import vivo_log
+from owlpost.vivo_utils.triple_handler import TripleHandler
+from owlpost.vivo_utils.update_log import UpdateLog
 
-from vivo_utils.handlers.pubmed_handler import PHandler
+from owlpost.vivo_utils.handlers.pubmed_handler import PHandler
 
 CONFIG_PATH = '<config_file>'
 _api = '--api'
@@ -55,27 +54,30 @@ def search_pubmed(handler, log_file, interact):
     return results
 
 def check_filter(abbrev_filter, name_filter, name):
-    if os.path.isfile(abbrev_filter):
-        cleanfig = get_config(abbrev_filter)
-        abbrev_table = cleanfig.get('abbrev_table')
-        name += " " #Add trailing space
-        name = name.replace('\\', '')
-        for abbrev in abbrev_table:
-            if (abbrev) in name:
-                name = name.replace(abbrev, abbrev_table[abbrev])
-        name = name[:-1] #Remove final space
+    try:
+        if os.path.isfile(abbrev_filter):
+            cleanfig = get_config(abbrev_filter)
+            abbrev_table = cleanfig.get('abbrev_table')
+            name += " " #Add trailing space
+            name = name.replace('\\', '')
+            for abbrev in abbrev_table:
+                if (abbrev) in name:
+                    name = name.replace(abbrev, abbrev_table[abbrev])
+            name = name[:-1] #Remove final space
 
-    if os.path.isfile(name_filter):
-        namefig = get_config(name_filter)
-        try:
-            if name.upper() in namefig.keys():
-                name = namefig.get(name.upper())
-        except AttributeError as e:
-            name = name
+        if os.path.isfile(name_filter):
+            namefig = get_config(name_filter)
+            try:
+                if name.upper() in namefig.keys():
+                    name = namefig.get(name.upper())
+            except AttributeError as e:
+                name = name
+    except TypeError:
+        name = name
 
     return name
 
-def process(connection, publication, added_journals, tripler, ulog, db_name, filter_folder):
+def process(connection, publication, added_journals, added_authors, tripler, ulog, db_name, filter_folder):
     abbrev_filter = os.path.join(filter_folder, 'general_filter.yaml')
     j_filter = os.path.join(filter_folder, 'journal_filter.yaml')
     # Add the journal
@@ -164,7 +166,7 @@ def add_pub(connection, publication, journal_n, tripler, ulog, db_name):
         pub_params['Article'].number = publication.number
 
         if query_type=='pass':
-            ulog.track_skips(publication.wosid, publication.types, **pub_params)
+            ulog.track_skips(publication.pmid, publication.types, **pub_params)
             pub_n = None
         else:
             tripler.update(query_type, **pub_params)
@@ -180,7 +182,7 @@ def add_pub(connection, publication, journal_n, tripler, ulog, db_name):
             ulog.track_ambiguities(publication.title, pub_n_list)
     return pub_n
 
-def parse_name(raw_name):
+def parse_name(author):
     try:
         last, rest = author.split(', ')
         try:
@@ -231,7 +233,8 @@ def add_authors_to_pub(connection, pub_n, author_ns, tripler):
         params['Article'].n_number = pub_n
         params['Author'].n_number = author_n
         
-        added = queries.check_author_on_pub.run(connection, **params)
+        added = tripler.run_checks(queries.check_author_on_pub, **params)
+        # added = queries.check_author_on_pub.run(connection, **params)
         if not added:
             tripler.update(queries.add_author_to_pub, **params)
 
@@ -253,16 +256,17 @@ def main(args):
     try:
         now = datetime.datetime.now()
         timestamp = now.strftime("%Y_%m_%d")
-        full_path = config.get('folder_for_logs') + now.strftime("%Y") + '/' + now.strftime("%m") + '/' + now.strftime("%d")
+        full_path = os.path.join(config.get('folder_for_logs'),
+            now.strftime("%Y")+ '/' + now.strftime("%m") + '/' + now.strftime("%d"))
         try:
             os.makedirs(full_path)
         except FileExistsError:
             pass
 
-        disam_file = os.path.join(full_path, (timestamp + '_pm_disambiguation.txt'))
+        disam_file = os.path.join(full_path, (timestamp + '_pm_disambiguation.json'))
         output_file = os.path.join(full_path, (timestamp + '_pm_output_file.txt'))
         upload_file = os.path.join(full_path, (timestamp + '_pm_upload_log.txt'))
-        skips_file = os.path.join(full_path, (timestamp + '_pm_skips.txt'))
+        skips_file = os.path.join(full_path, (timestamp + '_pm_skips.json'))
 
         results = search_pubmed(handler, output_file, args[_interact])
         publications = handler.parse_api(results)
@@ -279,8 +283,9 @@ def main(args):
         ulog = UpdateLog()
 
         added_journals = {}
+        added_authors = {}
         for publication in publications:
-            process(connection, publication, added_journals, tripler, ulog, db_name, filter_folder)
+            process(connection, publication, added_journals, added_authors, tripler, ulog, db_name, filter_folder)
 
         file_made = ulog.create_file(upload_file)
         ulog.write_skips(skips_file)
@@ -292,7 +297,7 @@ def main(args):
             tripler.print_rdf(rdf_filepath)
 
         os.remove(db_name)
-    except Exception as e:
+    except Exception:
         os.remove(db_name)
         import traceback
         exit(traceback.format_exc())

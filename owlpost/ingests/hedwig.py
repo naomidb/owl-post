@@ -14,17 +14,16 @@ Options:
 
 from docopt import docopt
 import os
-import os.path
 import datetime
 import yaml
 
-from vivo_utils import queries
-from vivo_utils.connections.vivo_connect import Connection
-from vivo_utils import vivo_log
-from vivo_utils.triple_handler import TripleHandler
-from vivo_utils.update_log import UpdateLog
-from vivo_utils.connections.wos_connect import WOSnnection
-from vivo_utils.handlers.wos_handler import WHandler
+from owlpost.vivo_utils import queries
+from owlpost.vivo_utils.connections.vivo_connect import Connection
+from owlpost.vivo_utils import vivo_log
+from owlpost.vivo_utils.triple_handler import TripleHandler
+from owlpost.vivo_utils.update_log import UpdateLog
+from owlpost.vivo_utils.connections.wos_connect import WOSnnection
+from owlpost.vivo_utils.handlers.wos_handler import WHandler
 
 # TODO Add query method
 # TODO Use daily_prophet for update e-mails
@@ -45,38 +44,31 @@ def get_config(config_path):
         exit()
     return config
 
-def make_folders(top_folder, sub_folders=None):
-    if not os.path.isdir(top_folder):
-        os.mkdir(top_folder)
-
-    if sub_folders:
-        sub_top_folder = os.path.join(top_folder, sub_folders[0])
-        top_folder = make_folders(sub_top_folder, sub_folders[1:])
-
-    return top_folder
-
 def check_filter(abbrev_filter, name_filter, name):
-    if os.path.isfile(abbrev_filter):
-        cleanfig = get_config(abbrev_filter)
-        abbrev_table = cleanfig.get('abbrev_table')
-        name += " " #Add trailing space
-        name = name.replace('\\', '')
-        for abbrev in abbrev_table:
-            if (abbrev) in name:
-                name = name.replace(abbrev, abbrev_table[abbrev])
-        name = name[:-1] #Remove final space
+    try:
+        if os.path.isfile(abbrev_filter):
+            cleanfig = get_config(abbrev_filter)
+            abbrev_table = cleanfig.get('abbrev_table')
+            name += " " #Add trailing space
+            name = name.replace('\\', '')
+            for abbrev in abbrev_table:
+                if (abbrev) in name:
+                    name = name.replace(abbrev, abbrev_table[abbrev])
+            name = name[:-1] #Remove final space
 
-    if os.path.isfile(name_filter):
-        namefig = get_config(name_filter)
-        try:
-            if name.upper() in namefig.keys():
-                name = namefig.get(name.upper())
-        except AttributeError as e:
-            name = name
+        if os.path.isfile(name_filter):
+            namefig = get_config(name_filter)
+            try:
+                if name.upper() in namefig.keys():
+                    name = namefig.get(name.upper())
+            except AttributeError as e:
+                name = name
+    except TypeError:
+        name = name
 
     return name
 
-def process(connection, publication, added_authors, tripler, ulog, db_name, filter_folder):
+def process(connection, publication, added_journals, added_authors, tripler, ulog, db_name, filter_folder):
     abbrev_filter = os.path.join(filter_folder, 'general_filter.yaml')
     publisher_n = None
     if publication.publisher:
@@ -104,7 +96,11 @@ def process(connection, publication, added_authors, tripler, ulog, db_name, filt
     if publication.journal:
         j_filter = os.path.join(filter_folder, 'journal_filter.yaml')
         publication.journal = check_filter(abbrev_filter, j_filter, publication.journal)
+        # Search for journal matches. Also check journals added this session.
+        # If no matches, do a more lenient search. If no matches, match by issn.
         journal_matches = vivo_log.lookup(db_name, 'journals', publication.journal, 'name')
+        if publication.journal in added_journals.keys():
+            journal_matches.append([added_journals[publication.journal],])
         if len(journal_matches) == 0:
             journal_matches = vivo_log.lookup(db_name, 'journals', publication.journal, 'name', True)
             if len(journal_matches) == 0:
@@ -120,6 +116,7 @@ def process(connection, publication, added_authors, tripler, ulog, db_name, filt
 
             journal_n = journal_params['Journal'].n_number
             ulog.add_to_log('journals', publication.journal, (connection.namespace + journal_n))
+            added_journals[publication.journal] = journal_n
             if len(journal_matches) > 1:
                 jrn_n_list = [journal_n]
                 for jrn_match in journal_matches:
@@ -239,7 +236,7 @@ def add_authors_to_pub(connection, pub_n, wosid, author_ns, tripler, ulog):
         params['Article'].n_number = pub_n
         params['Author'].n_number = author_n
         
-        added = queries.check_author_on_pub.run(connection, **params)
+        added = tripler.run_checks(queries.check_author_on_pub, **params)
         if not added:
             tripler.update(queries.add_author_to_pub, **params)
 
@@ -266,7 +263,12 @@ def main(args):
     try:
         now = datetime.datetime.now()
         timestamp = now.strftime("%Y_%m_%d")
-        full_path = make_folders(config.get('folder_for_logs'), [now.strftime("%Y"), now.strftime("%m"), now.strftime("%d")])
+        full_path = os.path.join(config.get('folder_for_logs'),
+            now.strftime("%Y")+ '/' + now.strftime("%m") + '/' + now.strftime("%d"))
+        try:
+            os.makedirs(full_path)
+        except FileExistsError:
+            pass
 
         if args[_bibtex]:
             input_file = config.get('input_file')
@@ -291,9 +293,10 @@ def main(args):
         tripler = TripleHandler(args[_api], connection, meta, output_file)
         ulog = UpdateLog()
 
+        added_journals = {}
         added_authors = {}
         for publication in publications:
-            process(connection, publication, added_authors, tripler, ulog, db_name, filter_folder)
+            process(connection, publication, added_journals, added_authors, tripler, ulog, db_name, filter_folder)
 
         upload_file_made = ulog.create_file(upload_file)
         citation_file_made = ulog.create_citation_file(citations_file)
@@ -306,16 +309,17 @@ def main(args):
             tripler.print_rdf(rdf_filepath)
 
         os.remove(db_name)
-    except Exception as e:
+    except Exception:
         os.remove(db_name)
-        exit(e)
+        import traceback
+        exit(traceback.format_exc())
 
-    if args[_mail]:
-        host = config.get('host')
-        port = config.get('port')
-        courier = daily_prophet.connect_to_smtp(host, port)
-        parcel = daily_prophet.create_email(ulog, config, citations_file)
-        daily_prophet.send_message(courier, parcel, config)
+    # if args[_mail]:
+    #     host = config.get('host')
+    #     port = config.get('port')
+    #     courier = daily_prophet.connect_to_smtp(host, port)
+    #     parcel = daily_prophet.create_email(ulog, config, citations_file)
+    #     daily_prophet.send_message(courier, parcel, config)
 
 if __name__ == '__main__':
     args = docopt(docstr)
