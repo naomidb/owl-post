@@ -1,6 +1,6 @@
-from owlpost.vivo_utils.vdos.thing import Thing
-from owlpost.vivo_utils.queries import get_all_with_x_as_obj
-from owlpost.vivo_utils.queries import get_all_with_x_as_subj
+from vivo_utils.vdos.thing import Thing
+from vivo_utils.queries import get_all_with_x_as_obj
+from vivo_utils.queries import get_all_with_x_as_subj
 
 def get_params(connection):
     thing = Thing(connection)

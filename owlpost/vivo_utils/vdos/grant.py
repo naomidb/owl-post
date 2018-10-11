@@ -1,5 +1,5 @@
-from owlpost.vivo_utils.vdos.VDO import VivoDomainObject
-from owlpost.vivo_utils.queries import make_dateTimeInterval
+from vivo_utils.vdos.VDO import VivoDomainObject
+from vivo_utils.queries import make_dateTimeInterval
 
 class Grant(VivoDomainObject):
     def __init__(self, connection):

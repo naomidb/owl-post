@@ -1,8 +1,8 @@
 import random
 import requests
 
-from owlpost.vivo_utils.queries import check_n_value
-from owlpost.vivo_utils.vdos.thing import Thing
+from vivo_utils.queries import check_n_value
+from vivo_utils.vdos.thing import Thing
 
 class Connection(object):
     def __init__(self, namespace, user, password, u_endpoint, q_endpoint):

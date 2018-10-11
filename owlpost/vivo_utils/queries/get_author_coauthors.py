@@ -1,5 +1,5 @@
-from owlpost.vivo_utils.vdos.author import Author
-from owlpost.vivo_utils.queries import get_vcard
+from vivo_utils.vdos.author import Author
+from vivo_utils.queries import get_vcard
 
 def get_params(connection):
     author = Author(connection)

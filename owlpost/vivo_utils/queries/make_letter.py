@@ -1,8 +1,8 @@
 from jinja2 import Environment
 
-from owlpost.vivo_utils.vdos.author import Author
-from owlpost.vivo_utils.vdos.article import Article
-from owlpost.vivo_utils.vdos.journal import Journal
+from vivo_utils.vdos.author import Author
+from vivo_utils.vdos.article import Article
+from vivo_utils.vdos.journal import Journal
 
 def get_params(connection):
     author = Author(connection)

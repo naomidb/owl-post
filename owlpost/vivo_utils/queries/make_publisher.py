@@ -1,6 +1,6 @@
 from jinja2 import Environment
 
-from owlpost.vivo_utils.vdos.publisher import Publisher
+from vivo_utils.vdos.publisher import Publisher
 
 def get_params(connection):
     publisher = Publisher(connection)

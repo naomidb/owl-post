@@ -1,10 +1,10 @@
 from jinja2 import Environment
 
-from owlpost.vivo_utils.queries import make_dateTimeInterval
-from owlpost.vivo_utils.vdos.author import Author
-from owlpost.vivo_utils.vdos.article import Article
-from owlpost.vivo_utils.vdos.grant import Grant
-from owlpost.vivo_utils.vdos.organization import Organization
+from vivo_utils.queries import make_dateTimeInterval
+from vivo_utils.vdos.author import Author
+from vivo_utils.vdos.article import Article
+from vivo_utils.vdos.grant import Grant
+from vivo_utils.vdos.organization import Organization
 
 
 def get_params(connection):

@@ -1,4 +1,4 @@
-from owlpost.vivo_utils.vdos.dateTime import DateTime
+from vivo_utils.vdos.dateTime import DateTime
 
 def get_params(connection):
     start_date = DateTime(connection)

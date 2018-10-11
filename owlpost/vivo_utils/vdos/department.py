@@ -1,4 +1,4 @@
-from owlpost.vivo_utils.vdos.VDO import VivoDomainObject
+from vivo_utils.vdos.VDO import VivoDomainObject
 
 
 class Department(VivoDomainObject):

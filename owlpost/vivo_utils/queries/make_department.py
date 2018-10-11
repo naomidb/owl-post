@@ -1,6 +1,6 @@
 from jinja2 import Environment
 
-from owlpost.vivo_utils.vdos.department import Department
+from vivo_utils.vdos.department import Department
 
 
 def get_params(connection):

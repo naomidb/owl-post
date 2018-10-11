@@ -1,6 +1,6 @@
-from owlpost.vivo_utils.vdos.article import Article
-from owlpost.vivo_utils.vdos.journal import Journal
-from owlpost.vivo_utils.queries import make_person
+from vivo_utils.vdos.article import Article
+from vivo_utils.vdos.journal import Journal
+from vivo_utils.queries import make_person
 
 def get_params(connection):
     article = Article(connection)

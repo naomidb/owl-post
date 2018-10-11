@@ -1,4 +1,4 @@
-from owlpost.vivo_utils.vdos.thing import Thing
+from vivo_utils.vdos.thing import Thing
 
 def get_params(connection):
     thing = Thing(connection)

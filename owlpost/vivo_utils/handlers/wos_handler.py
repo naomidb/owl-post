@@ -1,9 +1,9 @@
 from bibtexparser import loads
 import xml.etree.ElementTree as ET
 
-from owlpost.vivo_utils.name_cleaner import clean_name
-from owlpost.vivo_utils.publication import Publication
-from owlpost.vivo_utils.connections.wos_connect import WOSnnection
+from vivo_utils.name_cleaner import clean_name
+from vivo_utils.publication import Publication
+from vivo_utils.connections.wos_connect import WOSnnection
 
 class WHandler(object):
     def __init__(self, credentials, connect=True):

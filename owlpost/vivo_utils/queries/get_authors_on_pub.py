@@ -1,5 +1,5 @@
-from owlpost.vivo_utils.vdos.article import Article
-from owlpost.vivo_utils.queries import get_vcard
+from vivo_utils.vdos.article import Article
+from vivo_utils.queries import get_vcard
 
 def get_params(connection):
     article = Article(connection)

@@ -1,8 +1,8 @@
 from collections import OrderedDict
 
-from owlpost.vivo_utils.vdos.journal import Journal
-from owlpost.vivo_utils.vdos.publisher import Publisher
-from owlpost.vivo_utils.queries import make_publisher
+from vivo_utils.vdos.journal import Journal
+from vivo_utils.vdos.publisher import Publisher
+from vivo_utils.queries import make_publisher
 
 def get_params(connection):
     journal = Journal(connection)

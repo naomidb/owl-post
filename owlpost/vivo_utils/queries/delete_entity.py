@@ -1,8 +1,8 @@
 import re
 
-from owlpost.vivo_utils.vdos.thing import Thing
-from owlpost.vivo_utils.queries import get_label
-from owlpost.vivo_utils.queries import get_all_triples
+from vivo_utils.vdos.thing import Thing
+from vivo_utils.queries import get_label
+from vivo_utils.queries import get_all_triples
 
 def get_params(connection):
     thing = Thing(connection)

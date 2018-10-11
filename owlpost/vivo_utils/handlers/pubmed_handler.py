@@ -1,9 +1,9 @@
 import mysql.connector
 from time import localtime, strftime
 
-from owlpost.vivo_utils.connections.pubmed_connect import PUBnnection
-from owlpost.vivo_utils.name_cleaner import clean_name
-from owlpost.vivo_utils.publication import Publication
+from vivo_utils.connections.pubmed_connect import PUBnnection
+from vivo_utils.name_cleaner import clean_name
+from vivo_utils.publication import Publication
 
 class Citation(object):
     def __init__(self, data):
