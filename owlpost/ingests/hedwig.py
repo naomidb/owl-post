@@ -17,13 +17,13 @@ import os
 import datetime
 import yaml
 
-from owlpost.vivo_utils import queries
-from owlpost.vivo_utils.connections.vivo_connect import Connection
-from owlpost.vivo_utils import vivo_log
-from owlpost.vivo_utils.triple_handler import TripleHandler
-from owlpost.vivo_utils.update_log import UpdateLog
-from owlpost.vivo_utils.connections.wos_connect import WOSnnection
-from owlpost.vivo_utils.handlers.wos_handler import WHandler
+from vivo_utils import queries
+from vivo_utils.connections.vivo_connect import Connection
+from vivo_utils import vivo_log
+from vivo_utils.triple_handler import TripleHandler
+from vivo_utils.update_log import UpdateLog
+from vivo_utils.connections.wos_connect import WOSnnection
+from vivo_utils.handlers.wos_handler import WHandler
 
 # TODO Add query method
 # TODO Use daily_prophet for update e-mails

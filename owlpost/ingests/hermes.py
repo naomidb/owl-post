@@ -1,30 +1,28 @@
-docstr = """
-Hermes
-Usage:
-    hermes.py (-h | --help)
-    hermes.py (-a | -r) [-d] [-i] <config_file>
+# docstr = """
+# Hermes
+# Usage:
+#     hermes.py (-h | --help)
+#     hermes.py (-a | -r) [-d] [-i] <config_file>
 
-Options:
- -h --help        Show this message and exit
- -a --api         Use VIVO api to upload data immediately
- -r --rdf         Produce rdf files with data
- -d --database    Put api results into MySQL database
- -i --interact    Get query from user
-"""
+# Options:
+#  -h --help        Show this message and exit
+#  -a --api         Use VIVO api to upload data immediately
+#  -r --rdf         Produce rdf files with data
+#  -d --database    Put api results into MySQL database
+#  -i --interact    Get query from user
+# """
 
 import datetime
-from docopt import docopt
 import mysql.connector as mariadb
 import os
 import yaml
 
-from owlpost.vivo_utils import queries
-from owlpost.vivo_utils.connections.vivo_connect import Connection
-from owlpost.vivo_utils import vivo_log
-from owlpost.vivo_utils.triple_handler import TripleHandler
-from owlpost.vivo_utils.update_log import UpdateLog
-
-from owlpost.vivo_utils.handlers.pubmed_handler import PHandler
+from vivo_utils import queries
+from vivo_utils.connections.vivo_connect import Connection
+from vivo_utils import vivo_log
+from vivo_utils.triple_handler import TripleHandler
+from vivo_utils.update_log import UpdateLog
+from vivo_utils.handlers.pubmed_handler import PHandler
 
 CONFIG_PATH = '<config_file>'
 _api = '--api'
@@ -46,7 +44,7 @@ def search_pubmed(handler, log_file, interact):
     if interact:
         query = input("Enter your query: ")
     else:
-        query = 'University of Florida[Affiliation] AND "last 1 days"[edat]'
+        query = 'University of Florida[Affiliation] AND "last 2 days"[edat]'
 
     print("Searching pubmed")
     results = handler.get_data(query, log_file)
@@ -302,6 +300,6 @@ def main(args):
         import traceback
         exit(traceback.format_exc())
 
-if __name__ == '__main__':
-    args = docopt(docstr)
-    main(args)
+# if __name__ == '__main__':
+#     args = docopt(docstr)
+#     main(args)
