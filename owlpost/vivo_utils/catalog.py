@@ -3,7 +3,7 @@ Return a list of the available queries.
 '''
 import importlib
 
-from owlpost.vivo_utils import queries
+from vivo_utils import queries
 
 def list_queries():
     method_list = importlib.import_module('vivo_utils.queries')

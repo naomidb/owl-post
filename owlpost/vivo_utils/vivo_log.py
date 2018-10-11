@@ -1,12 +1,12 @@
 import datetime
 import sqlite3
 
-from owlpost.vivo_utils.queries import get_person_list
-from owlpost.vivo_utils.queries import get_journal_list
-from owlpost.vivo_utils.queries import get_publisher_list
-from owlpost.vivo_utils.queries import get_article_list
-from owlpost.vivo_utils.queries import get_grant_list
-from owlpost.vivo_utils.queries import get_organization_list
+from vivo_utils.queries import get_person_list
+from vivo_utils.queries import get_journal_list
+from vivo_utils.queries import get_publisher_list
+from vivo_utils.queries import get_article_list
+from vivo_utils.queries import get_grant_list
+from vivo_utils.queries import get_organization_list
 
 def update_db(connection, db_name, selections):
     conn = sqlite3.connect(db_name)

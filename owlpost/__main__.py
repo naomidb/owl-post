@@ -1,10 +1,12 @@
+#!/usr/bin/env python
+
 docstr = """
 Usage:
-    help
-    hedwig (-q | -b) (-a | -r) <config_file>
-    hermes (-a | -r) [-d] [-i] <config_file>
-    pigwidgeon (-a | -r) <config_file>
-    owls <config_file>
+    owlpost help
+    owlpost hedwig (-q | -b) (-a | -r) <config_file>
+    owlpost hermes (-a | -r) [-d] [-i] <config_file>
+    owlpost pigwidgeon (-a | -r) <config_file>
+    owlpost owls <config_file>
 
 Options:
      -a --api         Use VIVO api to upload data immediately
@@ -17,15 +19,7 @@ Options:
 
 from docopt import docopt
 
-from owlpost import ingests
-
-CONFIG_PATH = '<config_file>'
-_query = '--query'
-_bibtex = '--bibtex'
-_api = '--api'
-_rdf = '--rdf'
-_db = '--database'
-_interact = '--interact'
+import ingests
 
 def main(args):
     """

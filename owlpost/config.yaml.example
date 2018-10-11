@@ -1,3 +1,4 @@
+# VIVO
 email: 'username@school.edu'
 password: 'MyPassword'
 
@@ -6,12 +7,18 @@ query_endpoint: 'http://school.edu/vivo/api/sparqlQuery'
 
 namespace: 'http://school.edu/individual/'
 
-input_file: 'data_in/your_file.bib'
-
-folder_for_logs: 'path/to/folder/'
-
+# WOS
 wos_credentials: '"Username:Password" encoded in base 64'
 
+# Local
+input_file: 'data_in/your_file.bib'
+
+grant_file: /data_in/grant_file.csv
+
+folder_for_logs: 'path/to/folder/logs/'
+filter_folder: 'path/to/folder/filters/'
+
+# Database
 database: 'database_name'
 database_port: 'database_port'
 database_user: 'database_username'
