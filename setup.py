@@ -1,15 +1,26 @@
 from setuptools import setup, find_packages
 
-setup(name='owlpost',
-      packages=find_packages(),
-      version='0.1',
-      description='A collection of queries and tools for interacting with VIVO',
-      author='Naomi Braun',
-      author_email='naomi.d.braun@gmail.com',
-      url='https://github.com/naomidb/owl-post',
-      license='Apache License 2.0',
-      install_requires=[
-          'requests==2.18.4',
-          'PyYAML==3.12',
-          'Jinja2==2.10'],
-      )
+config = {
+  'description': 'A collection of queries and tools for interacting with VIVO',
+  'author': '',
+  'url': '',
+  'author_email': '',
+  'version': '',
+  'install requires': [
+      'requests==2.18.4',
+      'PyYAML==3.12',
+      'Jinja2==2.10'
+  ],
+  'dependency_links': [],
+  'include_package_data': True,
+  'packages': find_packages(),
+  'scripts': [],
+  'entry_points': {
+    'console_scripts': [
+        'owl = owlpost.__main__:cli_run'
+    ]
+  },
+  'name': 'owl'
+}
+
+setup(**config)
