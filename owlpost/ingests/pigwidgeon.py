@@ -1,15 +1,3 @@
-cdocstr = """
-Pigwidgeon
-Usage:
-    pigwidgeon.py (-h | --help)
-    pigwidgeon.py (-a | -r) <config_file>
-
-Options:
- -h --help        Show this message and exit
- -a --api         Use VIVO api to upload data immediately
- -r --rdf         Produce rdf files with data
- """
-
 from docopt import docopt
 import os.path
 import sys
@@ -303,7 +291,3 @@ def main(args):
         rdf_filepath = os.path.join(full_path, rdf_file)
         tripler.print_rdf(rdf_filepath)
         print('Check ' + rdf_filepath)
-
-if __name__ == '__main__':
-    args = docopt(docstr)
-    main(args)

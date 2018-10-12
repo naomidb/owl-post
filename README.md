@@ -45,13 +45,38 @@ database_port: 'database_port'
 database_user: 'database_username'
 database_pw: 'database_password'```
 
-
 ## Vivo Utils
 Vivo Utils contains a collection of tools for producing queries, processing data, and interacting with VIVO.
 The connections directory contains tools for creating connections to various APIs.
 The handlers directory contains tools for handling the data from a particular source and parsing it as needed.
 The queries directory contains pre-written query templates that can be used by other tools to create queries for getting or sending data through the VIVO API.
 The vdos directory contains objects that represent Things in VIVO (e.g. People, Articles, etc.). These are used to gather data to fill in the queries. The VDOs for any particular query can be found in its `get_params` function.
+
+
+## Owl Post
+
+### owls
+```owlpost owls <config_file>```
+
+A command line tool for adding/querying data to/from VIVO. Run the program and select from a pre-designed selection of queries. Follow the instructions and make sure to leave the input blank for information you do not know.
+
+### hedwig
+```owlpost hedwig (-q | -b) (-a | -r) <config_file>```
+
+Use a bibtex file from Web of Science and convert it into triples to be uploaded to VIVO. Information can be sent to VIVO via the api or an rdf file can be produced to be manually uploaded. Edit the `input_file` in the config with the bibtex file.
+
+### hermes
+```owlpost hermes (-a | -r) [-d] [-i] <config_file>```
+
+Use the PubMed API to pull data from PubMed and convert it into triples to be uploaded to VIVO. Information can be sent to VIVO via the api or an rdf file can be produced to be manually uploaded.
+
+### pigwidgeon
+```owlpost pigwidgeon (-a | -r) <config_file>```
+
+Use the PubMed API to pull data from PubMed and convert it into triples to be uploaded to VIVO. Unlike Hermes, this tool asks for an individual Person in VIVO and adds all publications from a query to that person only. Information can be sent to VIVO via the api or an rdf file can be produced to be manually uploaded.
+
+### errol
+
 
 ## Owl Post
 

@@ -1,17 +1,3 @@
-docstr = """
-Hedwig
-Usage:
-    hedwig.py (-h | --help)
-    hedwig.py (-q | -b) (-a | -r) <config_file>
-
-Options:
--h --help        Show this message and exit
--q --query       Use the WOS api to get new publication data (not functional)
--b --bibtex      Get new publication data from bibtex file (path in config file)
--a --api         Use VIVO update api to upload data immediately
--r --rdf         Produce rdf files with new data
-"""
-
 from docopt import docopt
 import os
 import datetime
@@ -320,7 +306,3 @@ def main(args):
     #     courier = daily_prophet.connect_to_smtp(host, port)
     #     parcel = daily_prophet.create_email(ulog, config, citations_file)
     #     daily_prophet.send_message(courier, parcel, config)
-
-if __name__ == '__main__':
-    args = docopt(docstr)
-    main(args)

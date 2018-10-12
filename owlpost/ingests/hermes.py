@@ -1,17 +1,3 @@
-# docstr = """
-# Hermes
-# Usage:
-#     hermes.py (-h | --help)
-#     hermes.py (-a | -r) [-d] [-i] <config_file>
-
-# Options:
-#  -h --help        Show this message and exit
-#  -a --api         Use VIVO api to upload data immediately
-#  -r --rdf         Produce rdf files with data
-#  -d --database    Put api results into MySQL database
-#  -i --interact    Get query from user
-# """
-
 import datetime
 import mysql.connector as mariadb
 import os
@@ -44,7 +30,7 @@ def search_pubmed(handler, log_file, interact):
     if interact:
         query = input("Enter your query: ")
     else:
-        query = 'University of Florida[Affiliation] AND "last 2 days"[edat]'
+        query = 'University of Florida[Affiliation] AND "last 1 days"[edat]'
 
     print("Searching pubmed")
     results = handler.get_data(query, log_file)
@@ -299,7 +285,3 @@ def main(args):
         os.remove(db_name)
         import traceback
         exit(traceback.format_exc())
-
-# if __name__ == '__main__':
-#     args = docopt(docstr)
-#     main(args)
