@@ -137,3 +137,5 @@ owlpost/data_in/*
 owlpost/data_out/*
 config.yaml
 wos_config.yaml
+citations.txt
+requirements_old.txt
