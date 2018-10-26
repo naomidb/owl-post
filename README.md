@@ -43,7 +43,8 @@ If you are storing the new information in a database, you must provide the datab
 ```database: 'database_name'
 database_port: 'database_port'
 database_user: 'database_username'
-database_pw: 'database_password'```
+database_pw: 'database_password'
+```
 
 ## Vivo Utils
 Vivo Utils contains a collection of tools for producing queries, processing data, and interacting with VIVO.
@@ -63,41 +64,18 @@ A command line tool for adding/querying data to/from VIVO. Run the program and s
 ### hedwig
 ```owlpost hedwig (-q | -b) (-a | -r) <config_file>```
 
-Use a bibtex file from Web of Science and convert it into triples to be uploaded to VIVO. Information can be sent to VIVO via the api or an rdf file can be produced to be manually uploaded. Edit the `input_file` in the config with the bibtex file.
+Use a bibtex file from Web of Science and convert it into triples to be uploaded to VIVO. Information can be sent to VIVO via the API or an rdf file can be produced to be manually uploaded. Edit the `input_file` in the config with the bibtex file.
 
 ### hermes
 ```owlpost hermes (-a | -r) [-d] [-i] <config_file>```
 
-Use the PubMed API to pull data from PubMed and convert it into triples to be uploaded to VIVO. Information can be sent to VIVO via the api or an rdf file can be produced to be manually uploaded.
+Use the PubMed API to pull data from PubMed and convert it into triples to be uploaded to VIVO. Information can be sent to VIVO via the API or an rdf file can be produced to be manually uploaded.
 
 ### pigwidgeon
-```owlpost pigwidgeon (-a | -r) <config_file>```
+```owlpost pigwidgeon (-a | -r) [-x | -l] <config_file>```
 
-Use the PubMed API to pull data from PubMed and convert it into triples to be uploaded to VIVO. Unlike Hermes, this tool asks for an individual Person in VIVO and adds all publications from a query to that person only. Information can be sent to VIVO via the api or an rdf file can be produced to be manually uploaded.
+Use the PubMed API to pull data from PubMed and convert it into triples to be uploaded to VIVO. You can search Pubmed with a query, or use the `-x` or `-l` flags to get the PubmedID list from a file. If you use `-x`, the file must be XML (which is the file type you will get by downloading a list from Pubmed). If you use the `-l` flag, the file should have each PubmedId on its own line.
 
-### errol
-
-
-## Owl Post
-
-### owls
-```python owls.py my/path/to/config/file```
-
-owls is the command line version of manually adding or querying data to or from Vivo through the web interface. Simply run the program, and then select the query you would like by number from the list. Then follow the instructions (make sure to leave inputs blank for information you do not know). 
-
-### hedwig
-```python hedwig.py my/path/to/config/file```
-
-hedwig takes bibtex files from `webofknowledge.com/wos` and converts them into triples which it then uploads. Search the webofknowledge site with your desired query and save the results as a bibtex file (optionally to the data_in folder). Then update the config file with the bibtex file location.
-
-### pigwidgeon
-```python pigwidgeon.py my/path/to/config/file```
-
-pigwidgeon interacts with the pubmed API and adds publications to an author it will ask you to specify via the command line. pigwidgeon produces rdf files which can be uploaded to VIVO through VIVO's online interface.
-
-### hermes
-```python hermes.py -r my/path/to/config/file```
-
-hermes will search pubmed for all publications based on a affliation and date (soon to be customizable) and upload them into VIVO. It parses all the journals, authors, publishers, and relationships. Then it checks and validates authors and journals for n-number in VIVO. Finally it puts it all together and uploads them into VIVO.
+Unlike Hermes, this tool asks for an individual Person in VIVO and adds all publications from a query to that person only. Information can be sent to VIVO via the API or an rdf file can be produced to be manually uploaded.
 
 ### errol
