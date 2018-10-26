@@ -3,9 +3,10 @@
 docstr = """
 Usage:
     owlpost help
+    owlpost errol (-a | -r) <config_file>
     owlpost hedwig (-q | -b) (-a | -r) <config_file>
     owlpost hermes (-a | -r) [-d] [-i] <config_file>
-    owlpost pigwidgeon (-a | -r) <config_file>
+    owlpost pigwidgeon (-a | -r) [-x | -l] <config_file>
     owlpost owls <config_file>
 
 Options:
@@ -15,6 +16,8 @@ Options:
      -b --bibtex      Get new publication data from bibtex file (path in config file)
      -d --database    Put api results into MySQL database
      -i --interact    Get query from user
+     -x --xml         Use XML file to generate PMID list
+     -l --list        Use file with just PMIDs listed
 """
 
 from docopt import docopt
@@ -27,6 +30,8 @@ def main(args):
     """
     if args.get('help'):
         print(docstr)
+    elif args.get('errol'):
+        ingests.errol.main(args)
     elif args.get('hedwig'):
         ingests.hedwig.main(args)
     elif args.get('hermes'):

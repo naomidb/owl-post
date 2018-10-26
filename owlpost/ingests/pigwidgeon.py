@@ -16,6 +16,8 @@ from vivo_utils.update_log import UpdateLog
 CONFIG_PATH = '<config_file>'
 _api = '--api'
 _rdf = '--rdf'
+_xml = '--xml'
+_list = '--list'
 
 def get_config(config_path):
     try:
@@ -36,223 +38,210 @@ def make_folders(top_folder, sub_folders=None):
 
     return top_folder
 
-def identify_author(connection, tripler, ulog):
-    author = Author(connection)
-    obj_n = input("Enter the n number of the person (if you do not know, leave blank): ")
-    if obj_n:
-        author.n_number = obj_n
+def identify_author(connection, tripler, ulog, db_name):
+    author_n = input("Enter the n number of the person (if you do not know, leave blank): ")
+    if author_n:
+        return author_n
     else:
         print("Enter the person's name.")
         first_name = input("First name: ")
-        if first_name:
-            author.first = first_name
         middle_name = input("Middle name: ")
-        if middle_name:
-            author.middle = middle_name
         last_name = input("Last name: ")
         if last_name:
-            author.last = last_name
-        obj_name = last_name + ", " + first_name + " " + middle_name
-        author.name = obj_name
+            full_name = last_name
+        else:
+            print("You must enter a last name.")
+            last_name = input("Last name: ")
+            full_name = last_name
+        if first_name or middle_name:
+            full_name += ", "
+            if first_name:
+                full_name += first_name
+                if middle_name:
+                    full_name += (" " + middle_name)
+            elif middle_name:
+                full_name += middle_name
 
-        match = match_input(tripler, connection, obj_name, 'person', True)
+        matches = vivo_log.lookup(db_name, 'authors', full_name, 'display')
+        if len(matches)==0:
+            matches = vivo_log.lookup(db_name, 'authors', full_name, 'display', True)
 
-        if not match:
-            create_obj = input("This person is not in the database. Would you like to add them? (y/n) ")
+        if len(matches)==1:
+            author_n = matches[0][0]
+        elif len(matches)>1:
+            choices = {}
+            count = 1
+            for row in matches:
+                if (connection.namespace + row[0]) not in choices.values():
+                    choices[count] = connection.namespace + row[0]
+                    count += 1
+            index = -1
+            for key, val in choices.items():
+                print(str(key) + ': ' + val + '\n')
+            index = input("Do any of these match your input? (if none, write -1): ")
+            if not index == -1:
+                nnum = choices[int(index)]
+                author_n = nnum.split(connection.namespace)[-1]
+            else:
+                matches = []
+
+        if len(matches)==0:
+            create_obj = input("This person does not exist in VIVO or could not be found. Would you like to add them? (y/n) ")
             if create_obj == 'y' or create_obj == 'Y':
                 print("Fill in the following details. Leave blank if you do not know what to write.")
+                params = queries.make_person.get_params(connection)
+                author = params['Author']
+                author.first = first_name
+                author.middle = middle_name
+                author.last = last_name
+                author.name = full_name
                 details = author.get_details()
                 for detail in details:
                     item_info = input(str(detail) + ": ")
                     setattr(author, detail, item_info)
 
-                params = {'Author': author}
                 result = tripler.update(queries.make_person, **params)
                 ulog.add_to_log('authors', author.name, (connection.namespace + params['Author'].n_number))
                 print('*' * 6 + '\nAdding person\n' + '*' * 6)
-
-    return author
-
-def sort_articles(connection, pub, author, tripler, ulog):
-    #TODO: add reviews
-    citation = Citation(pub['MedlineCitation'])
-    try:
-        obj_type = str(citation.check_key(['Article', 'PublicationTypeList'])[0])
-    except IndexError as e:
-        obj_type = "Journal Article"
-
-    article = Article(connection)
-    article.name = scrub(citation.check_key(['Article', 'ArticleTitle']).title())
-    article.volume = citation.check_key(['Article', 'Journal', 'JournalIssue', 'Volume'])
-    article.issue =  citation.check_key(['Article', 'Journal', 'JournalIssue', 'Issue'])
-    article.publication_year =  citation.check_key(['Article', 'Journal', 'JournalIssue', 'PubDate', 'Year'])
-    pages = str(citation.check_key(['Article', 'Pagination', 'MedlinePgn']))
-    try:
-        start_page, end_page = pages.split("-")
-        article.start_page = start_page
-        article.end_page = end_page
-    except ValueError as e:
-        start_page = pages
-        article.start_page = start_page
-
-    try:
-        article.doi =  str(citation.check_key(['Article', 'ELocationID'])[0])
-    except IndexError as e:
-        pass
-    article.pmid =  citation.check_key(['PMID'])
-
-    journal = get_journal(connection, citation, tripler, ulog)
-
-    if obj_type=='Journal Article':
-        #check if article exists
-        match = match_input(tripler, connection, article.name, article.type, False)    #check with article title
-        if not match:
-            if article.doi:
-                match = match_input(tripler, connection, article.doi, article.type, False) #check with article doi
-            if not match:
-                params = {'Article': article, 'Author': author, 'Journal': journal}
-                result = tripler.update(queries.make_academic_article, **params)
-                ulog.add_to_log('articles', article.name, (connection.namespace + article.n_number))
-                print('*' * 6 + '\nAdding article\n' + '*' * 6)
-
-    elif obj_type=='Editorial':
-        article.type = 'editorial'
-        match = match_input(tripler, connection, article.name, article.type, False)    #check with article title
-        if not match:
-            if article.doi:
-                match = match_input(tripler, connection, article.doi, article.type, False) #check with article doi
-            if not match:
-                params = {'Article': article, 'Author': author, 'Journal': journal}
-                result = tripler.update(queries.make_editorial_article, **params)
-                ulog.add_to_log('articles', article.name, (connection.namespace + article.n_number))
-                print('*' * 6 + '\nAdding article\n' + '*' * 6)
-
-    elif obj_type=='Letter':
-        article.type='letter'
-        match = match_input(tripler, connection, article.name, article.type, False)    #check with article title
-        if not match:
-            if article.doi:
-                match = match_input(tripler, connection, article.doi, article.type, False) #check with article doi
-            if not match:
-                params = {'Article': article, 'Author': author, 'Journal': journal}
-                result = tripler.update(queries.make_letter, **params)
-                ulog.add_to_log('articles', article.name, (connection.namespace + article.n_number))
-                print('*' * 6 + '\nAdding article\n' + '*' * 6)
-
-    else:
-        match = match_input(tripler, connection, article.name, 'thing', False)
-        if match:
-            print('PMID ' + article.pmid + ' found at ' + match + '\n\n')
-        else:
-            pages = citation.check_key(['Article', 'Pagination', 'MedlinePgn'])
-            try:
-                start, end = pages.split('-')
-            except ValueError as e:
-                start = pages
-                end = None
-            params = {'Article': article, 'Journal': journal}
-            ulog.track_skips(article.pmid, str(obj_type), **params)
-
-def scrub(label):
-    clean_label = label.replace('"', '\\"')
-    return clean_label
-
-def get_journal(connection, citation, tripler, ulog):
-    parts = queries.make_journal.get_params(connection)
-    parts['Journal'].name = citation.check_key(['Article', 'Journal', 'Title']).title()
-    parts['Journal'].issn = str(citation.check_key(['Article', 'Journal', 'ISSN']))
-
-    match = match_input(tripler, connection, parts['Journal'].name, 'journal', False)     #check with journal name
-    if not match and parts['Journal'].issn:
-        match = match_input(tripler, connection, parts['Journal'].issn, 'journal', False) #check with journal issn
-
-    if match:
-        parts['Journal'].n_number = match
-    else:
-        match = tripler.search_for_label(parts['Journal'].name)
-        if match:
-            parts['Journal'].n_number = match
-        else:
-            result = tripler.update(queries.make_journal, **parts)
-            ulog.add_to_log('journals', parts['Journal'].name, (connection.namespace + parts['Journal'].n_number))
-            print('*' * 6 + '\nAdding journal\n' + '*' * 6)
-
-    return parts['Journal']
-
-def match_input(tripler, connection, label, category, interact=False):
-    details = queries.find_n_for_label.get_params(connection)
-    details['Thing'].name = label
-    details['Thing'].extra = label
-    details['Thing'].type = category
-
-    try:
-        matches = queries.find_n_for_label.run(connection, **details)
-
-        hits = {}
-        match = None
-
-        #no matches
-        if (len(matches) == 0):
-            #label is passed with doi. this counts on there being no articles with the doi as their name.
-            if category == "academic_article":
-                hits = queries.find_n_for_doi.run(connection, **details)
-                if len(hits) == 1:
-                    for key in hits:
-                        match = key
-
-            #label is passed with issn. this counts on there being no journals with the issn as their name.
-            elif category == "journal":
-                hits = queries.find_n_for_issn.run(connection, **details)
-                if len(hits) == 1:
-                    for key in hits:
-                        match = key
-
+                author_n = params['Author'].n_number
             else:
-                match = None
+                exit()
 
-        #single match using title
-        elif len(matches) == 1:
-            for key in matches:
-                match = key
+    return author_n
 
-        #multiple matches
-        else:
-            if interact:
-                choices = {}
-                count = 1
-                for n_id, name in hits.items():
-                    if label.lower in val.lower():
-                        choices[count] = (n_id, name)
-                        count += 1
+def get_premade_list(pmid_file, _xml, _list):
+    if _xml:
+        tree = ET.parse(pmid_file)
+        root = tree.getroot()
 
-                index = -1
-                for key, val in choices.items():
-                    number,label = val
-                    print((str(key) + ': ' + label + ' (' + number + ')\n'))
-
-                index = input("Do any of these match your input? (if none, write -1): ")
-                if not index == -1:
-                    nnum, label = choices.get(index)
-                    match = nnum
-                else:
-                    match = None
+        pmids = []
+        for citing in root.iter('Item'):
+            pmid = ''
+            for ident in citing.find('Identifiers').iter():
+                try:
+                    if ident.attrib['name'] == 'PMID':
+                        pmid = ident.text
+                except KeyError:
+                    pass
+            if pmid:
+                pmids.append(pmid)
             else:
-                match = None
-                #TODO: deal with duplicates
-        return match
-    except Exception as e:
-        print(e)
-        timestamp = strftime("%Y_%m_%d_%H_%M")
-        filename = timestamp + '_upload.rdf'
-        filepath = '/Users/looseymoose/Desktop/' + filename
-        tripler.write_to_file(filepath)
-        print('Check ' + filepath)
-        exit()
+                print('No PMID: ' + citing.find('Title').text)
+    elif _list:
+        with open(pmid_file) as f:
+            pmids = f.read().splitlines()
+    
+    return pmids
+
+def check_filter(abbrev_filter, name_filter, name):
+    if os.path.isfile(abbrev_filter):
+        cleanfig = get_config(abbrev_filter)
+        abbrev_table = cleanfig.get('abbrev_table')
+        name += " " #Add trailing space
+        name = name.replace('\\', '')
+        for abbrev in abbrev_table:
+            if (abbrev) in name:
+                name = name.replace(abbrev, abbrev_table[abbrev])
+        name = name[:-1] #Remove final space
+
+    if os.path.isfile(name_filter):
+        namefig = get_config(name_filter)
+        try:
+            if name.upper() in namefig.keys():
+                name = namefig.get(name.upper())
+        except AttributeError as e:
+            name = name
+
+    return name
+
+def process(connection, publication, author, tripler, ulog, db_name, filter_folder):
+    abbrev_filter = os.path.join(filter_folder, 'general_filter.yaml')
+    j_filter = os.path.join(filter_folder, 'journal_filter.yaml')
+    journal_n = None
+    if publication.journal:
+        publication.journal = check_filter(abbrev_filter, j_filter, publication.journal)
+        journal_matches = vivo_log.lookup(db_name, 'journals', publication.journal, 'name')
+        if len(journal_matches) == 0:
+            journal_matches = vivo_log.lookup(db_name, 'journals', publication.journal, 'name', True)
+            if len(journal_matches) == 0:
+                journal_matches = vivo_log.lookup(db_name, 'journals', publication.issn, 'issn')
+        if len(journal_matches) == 1:
+            journal_n = journal_matches[0][0]
+        else:
+            journal_params = queries.make_journal.get_params(connection)
+            journal_params['Journal'].name = publication.journal
+            journal_params['Journal'].issn = publication.issn
+            tripler.update(queries.make_journal, **journal_params)
+
+            journal_n = journal_params['Journal'].n_number
+            ulog.add_to_log('journals', publication.journal, (connection.namespace + journal_n))
+            if len(journal_matches) > 1:
+                jrn_n_list = [journal_n]
+                for jrn_match in journal_matches:
+                    jrn_n_list.append(jrn_match[0])
+                ulog.track_ambiguities(publication.journal, jrn_n_list)
+
+    pub_n = add_pub(connection, publication, author, journal_n, tripler, ulog, db_name)
+
+def add_pub(connection, publication, author, journal_n, tripler, ulog, db_name):
+    pub_type = None
+    query_type = None
+
+    if 'Journal Article' in publication.types:
+        pub_type = 'academic_article'
+        query_type = getattr(queries, 'make_academic_article')
+    elif 'Editorial' in publication.types:
+        pub_type = 'editorial'
+        query_type = getattr(queries, 'make_editorial_article')
+    elif 'Letter' in publication.types:
+        pub_type = 'letter'
+        query_type = getattr(queries, 'make_letter')
+    elif 'Abstract' in publication.types:
+        pub_type = 'abstract'
+        query_type = getattr(queries, 'make_abstract')
+    else:
+        query_type = 'pass'
+
+    publication_matches = vivo_log.lookup(db_name, 'publications', publication.title, 'title')
+    if len(publication_matches) == 0:
+        publication_matches = vivo_log.lookup(db_name, 'publications', publication.doi, 'doi')
+    if len(publication_matches) == 1:
+        pub_n = publication_matches[0][0]
+    else:
+        pub_params = queries.make_academic_article.get_params(connection)
+        pub_params['Journal'].n_number = journal_n
+        pub_params['Article'].name = publication.title
+        pub_params['Article'].volume = publication.volume
+        pub_params['Article'].issue = publication.issue
+        pub_params['Article'].publication_year = publication.year
+        pub_params['Article'].doi = publication.doi
+        pub_params['Article'].pmid = publication.pmid
+        pub_params['Article'].start_page = publication.start_page
+        pub_params['Article'].end_page = publication.end_page
+        pub_params['Article'].number = publication.number
+        pub_params['Author'].n_number = author
+
+        if query_type=='pass':
+            ulog.track_skips(publication.pmid, publication.type, **pub_params)
+            pub_n = None
+        else:
+            tripler.update(query_type, **pub_params)
+            pub_n = pub_params['Article'].n_number
+            ulog.add_to_log('articles', publication.title, (connection.namespace + pub_n))
+
+        if len(publication_matches) > 1:
+            pub_n_list = []
+            for pub_match in publication_matches:
+                pub_n_list.append(pub_match[0])
+            if pub_n:
+                pub_n_list.append(pub_n)
+            ulog.track_ambiguities(publication.title, pub_n_list)
+    return pub_n
 
 def main(args):
     config = get_config(args[CONFIG_PATH])
     email = config.get('email')
-    password = config.get('password')
+    password = config.get ('password')
     update_endpoint = config.get('update_endpoint')
     query_endpoint = config.get('query_endpoint')
     namespace = config.get('namespace')
@@ -261,33 +250,49 @@ def main(args):
     db_name = '/tmp/vivo_temp_storage.db'
 
     connection = Connection(namespace, email, password, update_endpoint, query_endpoint)
-    vivo_log.update_db(connection, db_name)
     handler = PHandler(email)
+    vivo_log.update_db(connection, db_name, ['journals', 'publications'])
+        
+    try:
+        now = datetime.datetime.now()
+        timestamp = now.strftime("%Y_%m_%d_%H_%M")
+        full_path = make_folders(config.get('folder_for_logs'), [now.strftime("%Y"), now.strftime("%m"), now.strftime("%d")])
 
-    now = datetime.datetime.now()
-    timestamp = now.strftime("%Y_%m_%d_%H_%M")
-    full_path = make_folders(config.get('folder_for_logs'), [now.strftime("%Y"), now.strftime("%m"), now.strftime("%d")])
+        output_file = os.path.join(full_path, (timestamp + '_pig_output_file.txt'))
+        upload_file = os.path.join(full_path, (timestamp + '_pig_upload_log.txt'))
+        skips_file = os.path.join(full_path, (timestamp + '_pig_skips_.json'))
+        
+        meta = {'source': 'Pigwidgeon', 'harvest_date': now.strftime("%Y-%m-%d")}
+        tripler = TripleHandler(args[_api], connection, meta, output_file)
+        ulog = UpdateLog()
+        
+        author = identify_author(connection, tripler, ulog, db_name)
+        
+        if args[_xml] or args[_list]:
+            q_info = get_premade_list(config.get('input_file'), args[_xml], args[_list])
+        else:
+            q_info = input("Write your pubmed query: ")
+        results = handler.get_data(q_info, output_file)
+        publications = handler.parse_api(results)
 
-    output_file = os.path.join(full_path, (timestamp + '_pig_output_file.txt'))
-    upload_file = os.path.join(full_path, (timestamp + '_pig_upload_log.txt'))
-    skips_file = os.path.join(full_path, (timestamp + '_pig_skips_.json'))
-    
-    tripler = TripleHandler(args[_api], connection)
-    ulog = UpdateLog()
-    
-    author = identify_author(connection, tripler, ulog)
-    
-    query = input("Write your pubmed query: ")
-    raw_articles = handler.get_data(query)
+        for publication in publications:
+            process(connection, publication, author, tripler, ulog, db_name, filter_folder)
 
-    for citing in raw_articles['PubmedArticle']:
-        sort_articles(connection, citing, author, tripler, ulog)
+        file_made = ulog.create_file(upload_file)
+        ulog.write_skips(skips_file)
 
-    are_uploads = ulog.create_file(upload_file)
-    ulog.write_skips(skips_file)
+        if args[_rdf]:
+            rdf_file = timestamp + '_upload.rdf'
+            rdf_filepath = os.path.join(full_path, rdf_file)
+            tripler.print_rdf(rdf_filepath)
+            print('Check ' + rdf_filepath)
 
-    if args[_rdf]:
-        rdf_file = timestamp + '_upload.rdf'
-        rdf_filepath = os.path.join(full_path, rdf_file)
-        tripler.print_rdf(rdf_filepath)
-        print('Check ' + rdf_filepath)
+        os.remove(db_name)
+    except Exception as e:
+        os.remove(db_name)
+        import traceback
+        exit(traceback.format_exc())
+
+if __name__ == '__main__':
+    args = docopt(docstr)
+    main(args)
