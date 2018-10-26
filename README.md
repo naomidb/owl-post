@@ -43,7 +43,8 @@ If you are storing the new information in a database, you must provide the datab
 ```database: 'database_name'
 database_port: 'database_port'
 database_user: 'database_username'
-database_pw: 'database_password'```
+database_pw: 'database_password'
+```
 
 ## Vivo Utils
 Vivo Utils contains a collection of tools for producing queries, processing data, and interacting with VIVO.
