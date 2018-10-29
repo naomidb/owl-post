@@ -57,25 +57,44 @@ The vdos directory contains objects that represent Things in VIVO (e.g. People, 
 ## Owl Post
 
 ### owls
-```owlpost owls <config_file>```
+```python owlpost owls <config_file>```
 
 A command line tool for adding/querying data to/from VIVO. Run the program and select from a pre-designed selection of queries. Follow the instructions and make sure to leave the input blank for information you do not know.
 
 ### hedwig
-```owlpost hedwig (-q | -b) (-a | -r) <config_file>```
+```python owlpost hedwig (-a | -r) (-q | -b) <config_file>```
 
 Use a bibtex file from Web of Science and convert it into triples to be uploaded to VIVO. Information can be sent to VIVO via the API or an rdf file can be produced to be manually uploaded. Edit the `input_file` in the config with the bibtex file.
 
+Use `-a` to upload data to VIVO via the VIVO API.
+Use `-r` to produce an rdf file with data for VIVO.
+Use `-q` to run a query through the WOS API. [Note: The ingest does not currently work with this option. Use a bibtex file.]
+Use `-b` to get data from a bibtex file downloaded from WOS.
+
 ### hermes
-```owlpost hermes (-a | -r) [-d] [-i] <config_file>```
+```python owlpost hermes (-a | -r) [-d] [-i] <config_file>```
 
 Use the PubMed API to pull data from PubMed and convert it into triples to be uploaded to VIVO. Information can be sent to VIVO via the API or an rdf file can be produced to be manually uploaded.
 
+Use `-a` to upload data to VIVO via the VIVO API.
+Use `-r` to produce an rdf file with data for VIVO.
+Use `-d` to store the publications pulled in by the ingest in a separate, permanent database.
+Use `-i` to manually enter a query instead of using the default one.
+
 ### pigwidgeon
-```owlpost pigwidgeon (-a | -r) [-x | -l] <config_file>```
+```python owlpost pigwidgeon (-a | -r) [-x | -l] <config_file>```
 
 Use the PubMed API to pull data from PubMed and convert it into triples to be uploaded to VIVO. You can search Pubmed with a query, or use the `-x` or `-l` flags to get the PubmedID list from a file. If you use `-x`, the file must be XML (which is the file type you will get by downloading a list from Pubmed). If you use the `-l` flag, the file should have each PubmedId on its own line.
 
 Unlike Hermes, this tool asks for an individual Person in VIVO and adds all publications from a query to that person only. Information can be sent to VIVO via the API or an rdf file can be produced to be manually uploaded.
 
+Use `-a` to upload data to VIVO via the VIVO API.
+Use `-r` to produce an rdf file with data for VIVO.
+Use `-x` to get the PubmedIDs from an xml file.
+Use `-l` to get the PubmedIDs from a file with just the IDs listed.
+
 ### errol
+```python errol (-a | -r) <config_file>```
+
+Use `-a` to upload data to VIVO via the VIVO API.
+Use `-r` to produce an rdf file with data for VIVO.
