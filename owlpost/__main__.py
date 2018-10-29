@@ -4,7 +4,7 @@ docstr = """
 Usage:
     owlpost help
     owlpost errol (-a | -r) <config_file>
-    owlpost hedwig (-q | -b) (-a | -r) <config_file>
+    owlpost hedwig (-a | -r) (-q | -b) <config_file>
     owlpost hermes (-a | -r) [-d] [-i] <config_file>
     owlpost pigwidgeon (-a | -r) [-x | -l] <config_file>
     owlpost owls <config_file>
