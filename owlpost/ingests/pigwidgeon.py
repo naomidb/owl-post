@@ -12,6 +12,9 @@ from vivo_utils import queries
 from vivo_utils.connections.vivo_connect import Connection
 from vivo_utils.triple_handler import TripleHandler
 from vivo_utils.update_log import UpdateLog
+from vivo_utils import vivo_log
+
+from vivo_utils import input_matcher
 
 CONFIG_PATH = '<config_file>'
 _api = '--api'
@@ -27,16 +30,6 @@ def get_config(config_path):
         print("Error: Check config file")
         exit()
     return config
-
-def make_folders(top_folder, sub_folders=None):
-    if not os.path.isdir(top_folder):
-        os.mkdir(top_folder)
-
-    if sub_folders:
-        sub_top_folder = os.path.join(top_folder, sub_folders[0])
-        top_folder = make_folders(sub_top_folder, sub_folders[1:])
-
-    return top_folder
 
 def identify_author(connection, tripler, ulog, db_name):
     author_n = input("Enter the n number of the person (if you do not know, leave blank): ")
@@ -154,17 +147,13 @@ def check_filter(abbrev_filter, name_filter, name):
 
     return name
 
-def process(connection, publication, author, tripler, ulog, db_name, filter_folder):
+def process(connection, publication, added_journals, author, tripler, ulog, db_name, filter_folder):
     abbrev_filter = os.path.join(filter_folder, 'general_filter.yaml')
     j_filter = os.path.join(filter_folder, 'journal_filter.yaml')
     journal_n = None
     if publication.journal:
         publication.journal = check_filter(abbrev_filter, j_filter, publication.journal)
-        journal_matches = vivo_log.lookup(db_name, 'journals', publication.journal, 'name')
-        if len(journal_matches) == 0:
-            journal_matches = vivo_log.lookup(db_name, 'journals', publication.journal, 'name', True)
-            if len(journal_matches) == 0:
-                journal_matches = vivo_log.lookup(db_name, 'journals', publication.issn, 'issn')
+        journal_matches = input_matcher.journal_matching(publication, db_name, added_journals)
         if len(journal_matches) == 1:
             journal_n = journal_matches[0][0]
         else:
@@ -175,6 +164,7 @@ def process(connection, publication, author, tripler, ulog, db_name, filter_fold
 
             journal_n = journal_params['Journal'].n_number
             ulog.add_to_log('journals', publication.journal, (connection.namespace + journal_n))
+            added_journals[publication.journal] = journal_n
             if len(journal_matches) > 1:
                 jrn_n_list = [journal_n]
                 for jrn_match in journal_matches:
@@ -202,9 +192,7 @@ def add_pub(connection, publication, author, journal_n, tripler, ulog, db_name):
     else:
         query_type = 'pass'
 
-    publication_matches = vivo_log.lookup(db_name, 'publications', publication.title, 'title')
-    if len(publication_matches) == 0:
-        publication_matches = vivo_log.lookup(db_name, 'publications', publication.doi, 'doi')
+    publication_matches = input_matcher.pub_matching(publication, db_name)
     if len(publication_matches) == 1:
         pub_n = publication_matches[0][0]
     else:
@@ -255,8 +243,13 @@ def main(args):
         
     try:
         now = datetime.datetime.now()
-        timestamp = now.strftime("%Y_%m_%d_%H_%M")
-        full_path = make_folders(config.get('folder_for_logs'), [now.strftime("%Y"), now.strftime("%m"), now.strftime("%d")])
+        timestamp = now.strftime("%Y_%m_%d")
+        full_path = os.path.join(config.get('folder_for_logs'),
+            now.strftime("%Y")+ '/' + now.strftime("%m") + '/' + now.strftime("%d"))
+        try:
+            os.makedirs(full_path)
+        except FileExistsError:
+            pass
 
         output_file = os.path.join(full_path, (timestamp + '_pig_output_file.txt'))
         upload_file = os.path.join(full_path, (timestamp + '_pig_upload_log.txt'))
@@ -275,8 +268,9 @@ def main(args):
         results = handler.get_data(q_info, output_file)
         publications = handler.parse_api(results)
 
+        added_journals = {}
         for publication in publications:
-            process(connection, publication, author, tripler, ulog, db_name, filter_folder)
+            process(connection, publication, added_journals, author, tripler, ulog, db_name, filter_folder)
 
         file_made = ulog.create_file(upload_file)
         ulog.write_skips(skips_file)

@@ -10,6 +10,8 @@ from vivo_utils.triple_handler import TripleHandler
 from vivo_utils.update_log import UpdateLog
 from vivo_utils.handlers.pubmed_handler import PHandler
 
+from vivo_utils import input_matcher
+
 CONFIG_PATH = '<config_file>'
 _api = '--api'
 _rdf = '--rdf'
@@ -68,15 +70,8 @@ def process(connection, publication, added_journals, added_authors, tripler, ulo
     journal_n = None
     if publication.journal:
         publication.journal = check_filter(abbrev_filter, j_filter, publication.journal)
-        # Search for journal matches. Also check journals added this session.
-        # If no matches, do a more lenient search. If no matches, match by issn.
-        journal_matches = vivo_log.lookup(db_name, 'journals', publication.journal, 'name')
-        if publication.journal in added_journals.keys():
-            journal_matches.append([added_journals[publication.journal],])
-        if len(journal_matches) == 0:
-            journal_matches = vivo_log.lookup(db_name, 'journals', publication.journal, 'name', True)
-            if len(journal_matches) == 0:
-                journal_matches = vivo_log.lookup(db_name, 'journals', publication.issn, 'issn')
+
+        journal_matches = input_matcher.journal_matching(publication, db_name, added_journals)
         if len(journal_matches) == 1:
             journal_n = journal_matches[0][0]
         else:
@@ -131,9 +126,7 @@ def add_pub(connection, publication, journal_n, tripler, ulog, db_name):
     else:
         query_type = 'pass'
 
-    publication_matches = vivo_log.lookup(db_name, 'publications', publication.title, 'title')
-    if len(publication_matches) == 0:
-        publication_matches = vivo_log.lookup(db_name, 'publications', publication.doi, 'doi')
+    publication_matches = input_matcher.pub_matching(publication, db_name)
     if len(publication_matches) == 1:
         pub_n = publication_matches[0][0]
     else:
@@ -182,12 +175,10 @@ def parse_name(author):
 def add_authors(connection, author, orcid, added_authors, tripler, ulog, db_name):
     first, middle, last = parse_name(author)
 
-    matches = vivo_log.lookup(db_name, 'authors', author, 'display')
-    if author in added_authors.keys():
-        matches.append(added_authors[author])
-
-    if len(matches) == 0:
-        matches = vivo_log.lookup(db_name, 'authors', author, 'display', True)
+    matches = input_matcher.author_match(author, db_name, added_authors)
+    if len(matches)>1:
+        matches = input_matcher.advanced_author_match(connection, matches,
+                                publication.journal, publication.authors)
     if len(matches) == 1:
         author_n = matches[0][0]
     else:

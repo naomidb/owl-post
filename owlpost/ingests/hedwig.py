@@ -11,6 +11,8 @@ from vivo_utils.update_log import UpdateLog
 from vivo_utils.connections.wos_connect import WOSnnection
 from vivo_utils.handlers.wos_handler import WHandler
 
+from vivo_utils import input_matcher
+
 # TODO Add query method
 # TODO Use daily_prophet for update e-mails
 
@@ -60,9 +62,7 @@ def process(connection, publication, added_journals, added_authors, tripler, ulo
     if publication.publisher:
         p_filter = os.path.join(filter_folder, 'publisher_filter.yaml')
         publication.publisher = check_filter(abbrev_filter, p_filter, publication.publisher)
-        publisher_matches = vivo_log.lookup(db_name, 'publishers', publication.publisher, 'name')
-        if len(publisher_matches) == 0:
-            publisher_matches = vivo_log.lookup(db_name, 'publishers', publication.publisher, 'name', True)
+        publisher_matches = input_matcher.publisher_matching(publication.publisher, db_name)
         if len(publisher_matches) == 1:
             publisher_n = publisher_matches[0][0]
         else:
@@ -82,15 +82,8 @@ def process(connection, publication, added_journals, added_authors, tripler, ulo
     if publication.journal:
         j_filter = os.path.join(filter_folder, 'journal_filter.yaml')
         publication.journal = check_filter(abbrev_filter, j_filter, publication.journal)
-        # Search for journal matches. Also check journals added this session.
-        # If no matches, do a more lenient search. If no matches, match by issn.
-        journal_matches = vivo_log.lookup(db_name, 'journals', publication.journal, 'name')
-        if publication.journal in added_journals.keys():
-            journal_matches.append([added_journals[publication.journal],])
-        if len(journal_matches) == 0:
-            journal_matches = vivo_log.lookup(db_name, 'journals', publication.journal, 'name', True)
-            if len(journal_matches) == 0:
-                journal_matches = vivo_log.lookup(db_name, 'journals', publication.issn, 'issn')
+
+        journal_matches = input_matcher.journal_matching(publication, db_name, added_journals)
         if len(journal_matches) == 1:
             journal_n = journal_matches[0][0]
         else:
@@ -142,9 +135,7 @@ def add_pub(connection, publication, journal_n, tripler, ulog, db_name):
     else:
         query_type = 'pass'
 
-    publication_matches = vivo_log.lookup(db_name, 'publications', publication.title, 'title')
-    if len(publication_matches) == 0:
-        publication_matches = vivo_log.lookup(db_name, 'publications', publication.doi, 'doi')
+    publication_matches = input_matcher.pub_matching(publication, db_name)
     if len(publication_matches) == 1:
         pub_n = publication_matches[0][0]
     else:
@@ -178,22 +169,26 @@ def add_pub(connection, publication, journal_n, tripler, ulog, db_name):
             ulog.track_ambiguities(publication.title, pub_n_list)
     return pub_n
 
-def add_authors(connection, publication, author, added_authors, tripler, ulog, db_name):
-    first = middle = last = ""
+def parse_name(author):
     try:
         last, rest = author.split(', ')
         try:
             first, middle = rest.split(" ", 1)
+            return (first, middle, last)
         except ValueError as e:
             first = rest
+            return (first, '', last)
     except ValueError as e:
         last = author
-    matches = vivo_log.lookup(db_name, 'authors', author, 'display')
-    if author in added_authors.keys():
-        matches.append(added_authors[author])
+        return ('', '', last)
 
-    if len(matches) == 0:
-        matches = vivo_log.lookup(db_name, 'authors', author, 'display', True)
+def add_authors(connection, publication, author, added_authors, tripler, ulog, db_name):
+    first, middle, last = parse_name(author)
+
+    matches = input_matcher.author_match(author, db_name, added_authors)
+    if len(matches)>1:
+        matches = input_matcher.advanced_author_match(connection, matches,
+                                publication.journal, publication.authors)
     if len(matches) == 1:
         author_n = matches[0][0]
     else:

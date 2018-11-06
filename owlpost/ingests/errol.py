@@ -11,6 +11,8 @@ from vivo_utils import queries
 from vivo_utils.triple_handler import TripleHandler
 from vivo_utils.update_log import UpdateLog
 
+from vivo_utils import input_matcher
+
 CONFIG_PATH = '<config_file>'
 _api = '--api'
 _rdf = '--rdf'
@@ -88,7 +90,8 @@ def pump_grants(connection, grantication, tripler, ulog, db_name, added_authors,
     matches = vivo_log.lookup(db_name, 'grants', grantication.title, 'name')
     if len(matches) >= 1:
         for match in matches:
-            if (grantication.title, grantication.ps_contract_num, grantication.pi, grantication.start_date, grantication.end_date) == (match[1], match[2], match[4], match[5], match[6]):
+            if (grantication.title, grantication.ps_contract_num, grantication.pi, grantication.start_date, grantication.end_date) == \
+                (match[1], match[2], match[4], match[5], match[6]):
                 return
     params = queries.make_grant.get_params(connection)
     grant = params['Grant']
@@ -146,12 +149,17 @@ def parse_name(connection, db_name, raw_name, added_authors, tripler, ulog):
         last = raw_name
         first = middle = None
 
-    matches = vivo_log.lookup(db_name, 'authors', raw_name, 'display')
-    if raw_name in added_authors.keys():
-        matches.append(added_authors[raw_name])
+    # matches = vivo_log.lookup(db_name, 'authors', raw_name, 'display')
+    # if raw_name in added_authors.keys():
+    #     matches.append(added_authors[raw_name])
 
-    if len(matches) == 0:
-        matches = vivo_log.lookup(db_name, 'authors', raw_name, 'display', True)
+    # if len(matches) == 0:
+    #     matches = vivo_log.lookup(db_name, 'authors', raw_name, 'display', True)
+
+    matches = input_matcher.author_match(author, vivo_log, db_name, added_authors)
+    if len(matches)>1:
+        matches = input_matcher.advanced_author_match(connection, matches,
+                                publication.journal, publication.authors)
     if len(matches) == 1:
         author_n = matches[0][0]
     else:
@@ -177,12 +185,7 @@ def parse_name(connection, db_name, raw_name, added_authors, tripler, ulog):
     return author_n
 
 def parse_dept(connection, db_name, org_name, added_orgs, tripler, ulog, org_type='organization'):
-    matches = vivo_log.lookup(db_name, 'organizations', org_name, 'name')
-    if org_name in added_orgs.keys():
-        matches.append(added_orgs[org_name])
-
-    if len(matches) == 0:
-        matches = vivo_log.lookup(db_name, 'organizations', org_name, 'name', True)
+    matches = input_matcher.organization_matching(org_name, vivo_log, db_name)
     if len(matches) == 1:
         org_n = matches[0][0]
     else:
