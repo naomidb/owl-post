@@ -4,6 +4,8 @@ import sys
 import datetime
 import yaml
 
+import xml.etree.ElementTree as ET
+
 from vivo_utils.vdos.article import Article
 from vivo_utils.vdos.author import Author
 from vivo_utils.vdos.journal import Journal
