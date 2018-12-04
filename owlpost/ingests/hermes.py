@@ -208,7 +208,7 @@ def add_authors_to_pub(connection, pub_n, author_ns, tripler):
         params['Article'].n_number = pub_n
         params['Author'].n_number = author_n
         
-        added = tripler.run_checks(queries.check_author_on_pub, **params)
+        added = tripler.run_query(queries.check_author_on_pub, **params)
         # added = queries.check_author_on_pub.run(connection, **params)
         if not added:
             tripler.update(queries.add_author_to_pub, **params)

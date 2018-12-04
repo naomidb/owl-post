@@ -203,7 +203,7 @@ def add_authors(connection, publication, author, added_authors, tripler, ulog, d
 
         author_n = params['Author'].n_number
         ulog.add_to_log('authors', author, (connection.namespace + author_n))
-        added_authors[author] = author_n 
+        added_authors[author] = author_n
         if len(matches) > 1:
             auth_n_list = [author_n]
             for match in matches:
@@ -216,8 +216,8 @@ def add_authors_to_pub(connection, pub_n, wosid, author_ns, tripler, ulog):
         params = queries.add_author_to_pub.get_params(connection)
         params['Article'].n_number = pub_n
         params['Author'].n_number = author_n
-        
-        added = tripler.run_checks(queries.check_author_on_pub, **params)
+
+        added = tripler.run_query(queries.check_author_on_pub, **params)
         if not added:
             tripler.update(queries.add_author_to_pub, **params)
 
@@ -269,7 +269,7 @@ def main(args):
         upload_file = os.path.join(full_path, (timestamp + '_wos_upload_log.txt'))
         skips_file = os.path.join(full_path, (timestamp + '_wos_skips.json'))
         citations_file = os.path.join(full_path, (timestamp + '_wos_citations.html'))
-        
+
         meta = {'source': 'Hedwig', 'harvest_date': now.strftime("%Y-%m-%d")}
         tripler = TripleHandler(args[_api], connection, meta, output_file)
         ulog = UpdateLog()
