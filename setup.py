@@ -17,10 +17,10 @@ config = {
   'scripts': [],
   'entry_points': {
     'console_scripts': [
-        'owl = owlpost.__main__:cli_run'
+        'owlpost = owlpost.__main__:cli_run'
     ]
   },
-  'name': 'owl'
+  'name': 'owlpost'
 }
 
 setup(**config)
