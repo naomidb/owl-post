@@ -7,7 +7,7 @@ Usage:
     owlpost hedwig (-a | -r) (-q | -b) <config_file>
     owlpost hermes (-a | -r) [-d] [-i] <config_file>
     owlpost pigwidgeon (-a | -r) [-x | -l] <config_file>
-    owlpost owls <config_file>
+    owlpost owls (-a | -r) <config_file>
 
 Options:
      -a --api         Use VIVO api to upload data immediately
